@@ -14,6 +14,9 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-blaze-server" % Http4sVersion,
       "org.http4s"      %% "http4s-circe"        % Http4sVersion,
       "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
+      "org.http4s"      %% "http4s-blaze-client"          % Http4sVersion,
+      "com.github.scribejava" % "scribejava-core" % "5.0.0",
+      "com.github.scribejava" % "scribejava-apis" % "5.0.0",
       "org.specs2"     %% "specs2-core"          % Specs2Version % "test",
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion
     )
