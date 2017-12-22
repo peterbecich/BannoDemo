@@ -19,7 +19,8 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-blaze-client"          % Http4sVersion,
       "com.danielasfregola" %% "twitter4s" % "5.3",
       "org.specs2"     %% "specs2-core"          % Specs2Version % "test",
-      "ch.qos.logback"  %  "logback-classic"     % LogbackVersion
+      "ch.qos.logback"  %  "logback-classic"     % LogbackVersion,
+      "com.typesafe" % "config" % "1.3.1"
     )
   )
 

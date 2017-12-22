@@ -5,6 +5,10 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import com.danielasfregola.twitter4s.TwitterStreamingClient
+import com.danielasfregola.twitter4s.entities.Tweet
+import com.danielasfregola.twitter4s.entities.streaming.StreamingMessage
+
+
 
 /*
  https://github.com/scribejava/scribejava/wiki/getting-started
@@ -17,8 +21,13 @@ import com.danielasfregola.twitter4s.TwitterStreamingClient
 object OAuthSample extends App {
 
   println("OAuth Sample")
+  
+  val streamingClient = TwitterStreamingClient()
 
-  //val service = new ServiceBuilder("
+  def printTweetText: PartialFunction[StreamingMessage, Unit] = {
+    case tweet: Tweet => println(tweet.text)
+  }
 
+  streamingClient.sampleStatuses(stall_warnings = true)(printTweetText)
 
 }
