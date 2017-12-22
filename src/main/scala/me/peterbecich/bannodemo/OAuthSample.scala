@@ -15,6 +15,9 @@ import java.util.concurrent.ExecutionException;
 /*
  https://github.com/scribejava/scribejava/wiki/getting-started
  https://github.com/scribejava/scribejava/blob/master/scribejava-apis/src/test/java/com/github/scribejava/apis/examples/TwitterExample.java
+
+ Twitter4s
+ https://github.com/DanielaSfregola/twitter4s
  */
 
 object OAuthSample extends App {
