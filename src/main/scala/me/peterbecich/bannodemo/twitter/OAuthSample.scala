@@ -1,4 +1,4 @@
-package me.peterbecich.bannodemo
+package me.peterbecich.bannodemo.twitter
 
 import java.util.Scanner;
 import java.io.IOException;
@@ -29,5 +29,7 @@ object OAuthSample extends App {
   }
 
   streamingClient.sampleStatuses(stall_warnings = true)(printTweetText)
+
+
 
 }
