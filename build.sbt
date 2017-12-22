@@ -4,6 +4,8 @@ val LogbackVersion = "1.2.3"
 
 ensimeScalaVersion in ThisBuild := "2.12.4"
 
+resolvers += Resolver.sonatypeRepo("releases")
+
 lazy val root = (project in file("."))
   .settings(
     organization := "me.peterbecich",
@@ -15,8 +17,6 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-circe"        % Http4sVersion,
       "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
       "org.http4s"      %% "http4s-blaze-client"          % Http4sVersion,
-      // "com.github.scribejava" % "scribejava-core" % "5.0.0",
-      // "com.github.scribejava" % "scribejava-apis" % "5.0.0",
       "com.danielasfregola" %% "twitter4s" % "5.3",
       "org.specs2"     %% "specs2-core"          % Specs2Version % "test",
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion

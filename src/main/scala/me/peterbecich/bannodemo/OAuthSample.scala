@@ -1,16 +1,10 @@
 package me.peterbecich.bannodemo
 
 import java.util.Scanner;
-import com.github.scribejava.core.builder.ServiceBuilder;
-import com.github.scribejava.apis.TwitterApi;
-import com.github.scribejava.core.model.OAuth1AccessToken;
-import com.github.scribejava.core.model.OAuth1RequestToken;
-import com.github.scribejava.core.model.OAuthRequest;
-import com.github.scribejava.core.model.Response;
-import com.github.scribejava.core.model.Verb;
-import com.github.scribejava.core.oauth.OAuth10aService;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+
+import com.danielasfregola.twitter4s.TwitterStreamingClient
 
 /*
  https://github.com/scribejava/scribejava/wiki/getting-started
