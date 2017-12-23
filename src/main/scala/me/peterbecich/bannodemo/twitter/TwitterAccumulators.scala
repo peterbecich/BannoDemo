@@ -13,14 +13,14 @@ import fs2.{Stream, Pipe}
 /*
  https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/package-summary.html
  https://stackoverflow.com/questions/26902794/concurrency-primitives-in-scala
-
+ https://twitter.github.io/scala_school/concurrency.html#danger
  */
 
 object TwitterAccumulators {
 
   abstract class TwitterAccumulator {
 
-    def predicate: Tweet => Boolean
+    val predicate: Tweet => Boolean
 
     private val count: AtomicLong = new AtomicLong(0);
 
@@ -29,41 +29,69 @@ object TwitterAccumulators {
     val name: String
     def describe: String = name + ": " + getCount.toString
 
-    val accumulatorPipe: Pipe[IO, Tweet, Tweet] =
+    // TODO do this in IO
+    // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
+    
+    def accumulatorPipe: Pipe[IO, Tweet, Tweet] =
       (input: Stream[IO, Tweet]) => input.flatMap { tweet =>
-        // TODO do this in IO
-        // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
         if (predicate(tweet))
           count.incrementAndGet()
-        input
+        Stream.emit(tweet)
       }
   }
 
   case object TweetCount extends TwitterAccumulator {
-    def predicate: Tweet => Boolean = _ => true
+    val predicate: Tweet => Boolean = _ => true
     val name = "TweetCount"
   }
 
   case object EmojiTweetCount extends TwitterAccumulator {
-    def predicate: Tweet => Boolean = _ => true // TODO emoji predicate
+    val predicate: Tweet => Boolean = _ => true // TODO emoji predicate
     val name = "EmojiTweetCount"
   }
 
-  val accumulators = List(TweetCount, EmojiTweetCount)
+  case object URLTweetCount extends TwitterAccumulator {
+    val predicate: Tweet => Boolean =
+      tweet => tweet.text.contains("http")
+    val name = "URLTweetCount"
+  }
+
+  case object PicTweetCount extends TwitterAccumulator {
+    val predicate: Tweet => Boolean =
+      tweet => tweet.text.contains("pbs.twimg.com") ||
+        tweet.text.contains("pic.twitter.com") ||
+        tweet.text.contains("www.instagram.com") ||
+        tweet.text.contains("insta.gram")
+    val name = "PicTweetCount"
+  }
+
+  case object HashtagTweetCount extends TwitterAccumulator {
+    val predicate: Tweet => Boolean =
+      tweet => tweet.text.contains("#")
+    val name = "HashtagTweetCount"
+  }
+  
+  val accumulators = List(TweetCount, EmojiTweetCount, URLTweetCount, PicTweetCount, HashtagTweetCount)
 
 
-  val passThru: Pipe[IO, Tweet, Tweet] = stream => stream
+  def passThru[A]: Pipe[IO, A, A] = stream => stream
 
   // all pipes concatenated together
   // https://typelevel.org/cats/api/cats/Foldable.html#foldM[G[_],A,B](fa:F[A],z:B)(f:(B,A)=%3EG[B])(implicitG:cats.Monad[G]):G[B]
   // val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
   //   Foldable[List].foldM(accumulators, passThru)(
 
-  // val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
-  //   Foldable[List].foldMap(accumulators)(_.accumulatorPipe)
+  def pipeConcatenationMonoid[A] = new Monoid[Pipe[IO, A, A]] {
+    def combine(pipe1: Pipe[IO, A, A], pipe2: Pipe[IO, A, A]): Pipe[IO, A, A] =
+      pipe1.andThen(pipe2)
+    def empty: Pipe[IO, A, A] = passThru[A]
+  }
 
   val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
-    TweetCount.accumulatorPipe.andThen(EmojiTweetCount.accumulatorPipe)
+    Foldable[List].foldMap(accumulators)(_.accumulatorPipe)(pipeConcatenationMonoid[Tweet])
+
+  // val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
+  //   TweetCount.accumulatorPipe.andThen(EmojiTweetCount.accumulatorPipe)
 }
 
 
@@ -71,17 +99,18 @@ object TwitterAccumulatorExample {
   import fs2.{io, text}
   import TwitterAccumulators.concatenatedAccumulatorPipes
   import TwitterAccumulators.accumulators
+  import TwitterAccumulators.TweetCount
   import scala.concurrent.ExecutionContext.Implicits.global
   
 
   val countTwitter: IO[Unit] = TwitterQueue.createTwitterStream.flatMap { twitterStream =>
     twitterStream
       .through(concatenatedAccumulatorPipes)
-      .take(512)
+      .take(2048)
       .map(t => t.user.map(_.name).getOrElse("nobody"))
       .intersperse("\n")
       .through(text.utf8Encode)
-      .observe(io.stdout)
+      // .observe(io.stdout)
       .drain.run
   }
 
