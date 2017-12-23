@@ -92,6 +92,12 @@ object TwitterAccumulators {
 
   // val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
   //   TweetCount.accumulatorPipe.andThen(EmojiTweetCount.accumulatorPipe)
+
+  val accumulateTwitter: IO[Unit] = TwitterQueue.createTwitterStream.flatMap { twitterStream =>
+    twitterStream
+      .through(concatenatedAccumulatorPipes)
+      .drain.run
+  }
 }
 
 
@@ -101,7 +107,6 @@ object TwitterAccumulatorExample {
   import TwitterAccumulators.accumulators
   import TwitterAccumulators.TweetCount
   import scala.concurrent.ExecutionContext.Implicits.global
-  
 
   val countTwitter: IO[Unit] = TwitterQueue.createTwitterStream.flatMap { twitterStream =>
     twitterStream
@@ -116,15 +121,8 @@ object TwitterAccumulatorExample {
 
   def main(args: Array[String]): Unit = {
     println("twitter queue example, with FS2")
-
     countTwitter.unsafeRunSync()
-
-
     println("---------------------------------")
-
     accumulators.foreach { accumulator => println(accumulator.describe) }
-
   }
-
-
 }
