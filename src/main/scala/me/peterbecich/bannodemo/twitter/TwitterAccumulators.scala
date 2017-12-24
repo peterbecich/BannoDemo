@@ -20,19 +20,18 @@ object TwitterAccumulators {
 
   abstract class TwitterAccumulator {
 
+    val name: String
     val predicate: Tweet => Boolean
 
     private val count: AtomicLong = new AtomicLong(0);
 
     def getCount: Long = count.get()
-
-    val name: String
     def describe: String = name + ": " + getCount.toString
 
     // TODO do this in IO
     // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
     
-    def accumulatorPipe: Pipe[IO, Tweet, Tweet] =
+     def accumulatorPipe: Pipe[IO, Tweet, Tweet] =
       (input: Stream[IO, Tweet]) => input.flatMap { tweet =>
         if (predicate(tweet))
           count.incrementAndGet()
