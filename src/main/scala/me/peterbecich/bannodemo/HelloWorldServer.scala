@@ -13,14 +13,21 @@ import org.http4s.server.middleware._
 import org.http4s.util.ExitCode
 import org.http4s.util.StreamApp
 
+
+import java.time.ZonedDateTime
+
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import me.peterbecich.bannodemo.twitter.TwitterAccumulators
+import me.peterbecich.bannodemo.twitter.TwitterStats
+import me.peterbecich.bannodemo.twitter.TwitterStats._
 
 object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
   // http://http4s.org/v0.18/middleware/
   // http://http4s.org/v0.18/cors/
+
+  val serverStart: ZonedDateTime = ZonedDateTime.now()
 
   val peter = "http://peterbecich.me"
   // val originHeader = Header("Origin", peter)
@@ -46,6 +53,8 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
       Ok(TwitterAccumulators.PicTweetCount.getCount.toString)
     case GET -> Root / "hashtagTweetCount" =>
       Ok(TwitterAccumulators.HashtagTweetCount.getCount.toString)
+    case GET -> Root / "stats" =>
+      Ok(TwitterStats.getTwitterStatsJSON)
       // http://http4s.org/v0.18/static/
     case GET -> Root / "bannoDemo" =>
       StaticFile.fromFile[IO](new File("BannoDemo-frontend/dist/index.html")).getOrElseF(NotFound())

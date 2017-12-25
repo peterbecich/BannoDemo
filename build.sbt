@@ -37,6 +37,8 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-circe"        % Http4sVersion,
       "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
       "org.http4s"      %% "http4s-blaze-client"          % Http4sVersion,
+      "io.circe" % "circe-generic_2.12" % "0.9.0-M3",
+      "io.circe" % "circe-literal_2.12" % "0.9.0-M3",
       "co.fs2" %% "fs2-core" % "0.10.0-M8",
       "co.fs2" %% "fs2-io" % "0.10.0-M8",
       "org.typelevel" %% "cats-core" % "1.0.0-RC2",
