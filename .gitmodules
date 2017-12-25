@@ -1,0 +1,3 @@
+[submodule "BannoDemo-frontend"]
+	path = BannoDemo-frontend
+	url = git@github.com:peterbecich/BannoDemo-frontend.git
