@@ -1,11 +1,16 @@
 package me.peterbecich.bannodemo.twitter
 
+import cats.effect._
 import io.circe._
 import io.circe.Encoder
 import io.circe.syntax._
 import io.circe.literal._
 import io.circe.generic.auto._
 import org.http4s.circe._
+
+import fs2._
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import java.time.ZonedDateTime
 
@@ -49,8 +54,19 @@ object TwitterStats {
       HashtagTweetCount.getCount
     )
 
-  def getTwitterStatsJSON: io.circe.Json =
+  def getTwitterStatsJSON: Json =
     getTwitterStats.asJson
 
-  
+  val helloStream: Stream[IO, Unit] = Stream.eval_(IO(println("hello!")))
+
+  val oneSecondStream = Scheduler[IO](2).flatMap(_.awakeEvery[IO](1.second))
+
+  val oneSecondHello: Stream[IO, Unit] = oneSecondStream.flatMap(_ => helloStream)
+
+  val twitterStatsJsonStream: Stream[IO, Json] =
+    oneSecondStream.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
+
+  val printTwitterStatsStream: Stream[IO, Unit] =
+    twitterStatsJsonStream.map(json => println(json))
+
 }
