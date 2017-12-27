@@ -39,7 +39,7 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
     allowedOrigins = Set(peter),
     allowCredentials = false,
     maxAge = 1.day.toSeconds
-)
+  )
   val service = HttpService[IO] {
     case GET -> Root / "hello" / name =>
       Ok(Json.obj("message" -> Json.fromString(s"Hello, ${name}")))
@@ -55,14 +55,14 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
       Ok(TwitterAccumulators.HashtagTweetCount.getCount.toString)
     case GET -> Root / "stats" =>
       Ok(TwitterStats.getTwitterStatsJSON)
-      // http://http4s.org/v0.18/streaming/
+    // http://http4s.org/v0.18/streaming/
     // case GET -> Root / "statsStream" =>
     //   Ok(TwitterStats.twitterStatsJsonStream3)
-      // http://http4s.org/v0.18/static/
+    // http://http4s.org/v0.18/static/
     case GET -> Root / "bannoDemo" =>
-      StaticFile.fromFile[IO](new File("BannoDemo-frontend/dist/index.html")).getOrElseF(NotFound())
+      StaticFile.fromFile[IO](new File("BannoDemo-frontend/static/index.html")).getOrElseF(NotFound())
     case GET -> Root / filename =>
-      StaticFile.fromFile[IO](new File("BannoDemo-frontend/dist/"++filename)).getOrElseF(NotFound())
+      StaticFile.fromFile[IO](new File("BannoDemo-frontend/static/"++filename)).getOrElseF(NotFound())
 
   }
 
@@ -77,10 +77,10 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
       .serve
       .concurrently((Stream.eval_(TwitterAccumulators.accumulateTwitter)))
 
-    // Stream.eval_(TwitterAccumulators.accumulateTwitter).flatMap { (_: Nothing) =>
-    //   BlazeBuilder[IO]
-    //     .bindHttp(8080, "0.0.0.0")
-    //     .mountService(service, "/")
-    //     .serve
-    // }
+  // Stream.eval_(TwitterAccumulators.accumulateTwitter).flatMap { (_: Nothing) =>
+  //   BlazeBuilder[IO]
+  //     .bindHttp(8080, "0.0.0.0")
+  //     .mountService(service, "/")
+  //     .serve
+  // }
 }

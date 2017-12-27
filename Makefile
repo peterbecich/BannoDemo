@@ -3,14 +3,14 @@ frontend_dev:
 	npm install  && \
 	bower install && \
 	pulp build && \
-	pulp browserify --main MainDev --to dist/MainDev.js
+	pulp browserify --main MainDev --to static/MainDev.js
 
 watch_frontend_dev:
 	cd BannoDemo-frontend && \
 	npm install  && \
 	bower install && \
 	pulp build && \
-	pulp --watch browserify --main MainDev --to dist/MainDev.js
+	pulp --watch browserify --main MainDev --to static/MainDev.js
 
 
 
@@ -19,14 +19,14 @@ frontend_prod:
 	npm install  && \
 	bower install && \
 	pulp build && \
-	pulp browserify --main Main --to dist/Main.js
+	pulp browserify --main Main --to static/Main.js
 
 watch_frontend_prod:
 	cd BannoDemo-frontend && \
 	npm install  && \
 	bower install && \
 	pulp build && \
-	pulp --watch browserify --main Main --to dist/Main.js
+	pulp --watch browserify --main Main --to static/Main.js
 
 clean:
 	rm -rf target && \
