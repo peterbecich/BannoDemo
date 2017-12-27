@@ -66,7 +66,15 @@ object TwitterStats {
   val twitterStatsJsonStream: Stream[IO, Json] =
     oneSecondStream.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
 
+  val twitterStatsJsonStream2: Stream[IO, Json] =
+    Stream.repeatEval(IO(getTwitterStatsJSON))
+
   val printTwitterStatsStream: Stream[IO, Unit] =
     twitterStatsJsonStream.map(json => println(json))
+
+  def oneSecondStreamD = Scheduler[IO](2).flatMap(_.awakeEvery[IO](1.second))
+  def twitterStatsJsonStream3: Stream[IO, Json] =
+    oneSecondStreamD.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
+  
 
 }

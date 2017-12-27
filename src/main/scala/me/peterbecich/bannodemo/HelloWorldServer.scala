@@ -56,8 +56,8 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
     case GET -> Root / "stats" =>
       Ok(TwitterStats.getTwitterStatsJSON)
       // http://http4s.org/v0.18/streaming/
-    case GET -> Root / "statsStream" =>
-      Ok(TwitterStats.twitterStatsJsonStream)
+    // case GET -> Root / "statsStream" =>
+    //   Ok(TwitterStats.twitterStatsJsonStream3)
       // http://http4s.org/v0.18/static/
     case GET -> Root / "bannoDemo" =>
       StaticFile.fromFile[IO](new File("BannoDemo-frontend/dist/index.html")).getOrElseF(NotFound())
@@ -71,7 +71,8 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
     BlazeBuilder[IO]
       .bindHttp(8080, "0.0.0.0")
       .mountService(corsOriginService, "/")
-      .serve.concurrently((Stream.eval_(TwitterAccumulators.accumulateTwitter)))
+      .serve
+      .concurrently((Stream.eval_(TwitterAccumulators.accumulateTwitter)))
 
     // Stream.eval_(TwitterAccumulators.accumulateTwitter).flatMap { (_: Nothing) =>
     //   BlazeBuilder[IO]
