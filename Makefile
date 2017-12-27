@@ -27,3 +27,8 @@ watch_frontend_prod:
 	bower install && \
 	pulp build && \
 	pulp --watch browserify --main Main --to dist/Main.js
+
+clean:
+	rm -rf target && \
+	cd BannoDemo-frontend && \
+	rm -rf bower_components node_modules output package-lock.json

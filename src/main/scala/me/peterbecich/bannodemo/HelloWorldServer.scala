@@ -61,6 +61,9 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
       // http://http4s.org/v0.18/static/
     case GET -> Root / "bannoDemo" =>
       StaticFile.fromFile[IO](new File("BannoDemo-frontend/dist/index.html")).getOrElseF(NotFound())
+    case GET -> Root / filename =>
+      StaticFile.fromFile[IO](new File("BannoDemo-frontend/dist/"++filename)).getOrElseF(NotFound())
+
   }
 
   val corsOriginService = CORS(service, originConfig)
