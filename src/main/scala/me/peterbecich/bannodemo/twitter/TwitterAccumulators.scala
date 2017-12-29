@@ -41,7 +41,8 @@ object TwitterAccumulators {
 
     // TODO do this in IO
     // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
-    
+
+    // TODO make val?
     def accumulatorPipe: Pipe[IO, Tweet, Tweet] =
       (input: Stream[IO, Tweet]) => input.flatMap { tweet =>
         if (predicate(tweet)) {

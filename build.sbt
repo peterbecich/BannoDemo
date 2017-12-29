@@ -48,7 +48,8 @@ lazy val root = (project in file("."))
       "org.specs2"     %% "specs2-core"          % Specs2Version % "test",
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion,
       "com.typesafe" % "config" % "1.3.1",
-      "org.apache.commons" % "commons-collections4" % "4.1"
+      //"org.apache.commons" % "commons-collections4" % "4.1",
+      "commons-collections" % "commons-collections" % "3.2.2"
     )
   )
 
