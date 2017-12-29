@@ -1,11 +1,12 @@
 package me.peterbecich.bannodemo.twitter
 
+import cats.Applicative
 import cats.effect._
 import io.circe._
 import io.circe.Encoder
 import io.circe.syntax._
 import io.circe.literal._
-import io.circe.generic.auto._
+import io.circe.generic.semiauto._
 import org.http4s.circe._
 
 import fs2._
@@ -16,6 +17,7 @@ import java.time.ZonedDateTime
 
 import TwitterAccumulators._
 
+import me.peterbecich.bannodemo.HelloWorldServer.serverStart
 
 /*
  https://docs.oracle.com/javase/8/docs/api/java/time/ZonedDateTime.html
@@ -25,53 +27,53 @@ import TwitterAccumulators._
  */
 
 case class TwitterStats(
-  serverStartTimestamp: ZonedDateTime,
-  statsTimestamp: ZonedDateTime,
+  serverStartTimestamp: ZonedDateTime = serverStart,
+  statsTimestamp: ZonedDateTime = ZonedDateTime.now(),
   tweetCount: Long,
   emojiTweetCount: Long,
+  emojiPercentage: Double,
   urlTweetCount: Long,
+  urlPercentage: Double,
   picTweetCount: Long,
-  hashtagTweetCount: Long
+  picPercentage: Double,
+  hashtagTweetCount: Long,
+  hashtagPercentage: Double
 )
 
 object TwitterStats {
-  // circular dependency?
-  import me.peterbecich.bannodemo.HelloWorldServer.serverStart
 
-  implicit val statsEncoder: Encoder[TwitterStats] =
-    Encoder.instance { stats: TwitterStats =>
-      json"""{"serverStartTimestamp": ${stats.serverStartTimestamp.toString}, "statsTimestamp": ${stats.statsTimestamp.toString}, "tweetCount": ${stats.tweetCount}, "emojiTweetCount": ${stats.emojiTweetCount}, "urlTweetCount": ${stats.urlTweetCount}, "picTweetCount": ${stats.picTweetCount}, "hashtagTweetCount": ${stats.hashtagTweetCount}}"""
-    }
+  implicit val ZonedDateTimeEncoder: Encoder[ZonedDateTime] =
+    Encoder.instance { zonedDateTime => json"""${zonedDateTime.toString}""" }
 
-  def getTwitterStats: IO[TwitterStats] = for {
-    tweetCount <- TweetCount.getCount
-    emojiCount <- EmojiTweetCount.getCount
-    urlCount <- URLTweetCount.getCount
-    picCount <- PicTweetCount.getCount
-    hashtagCount <- HashtagTweetCount.getCount
-  } yield TwitterStats(serverStart, ZonedDateTime.now(), tweetCount, emojiCount, urlCount, picCount, hashtagCount)
+  implicit val statsEncoder: Encoder[TwitterStats] = deriveEncoder
+
+  private def makeTwitterStats(
+    tweetCount: Long,
+    emojiTweetCount: Long,
+    emojiPercentage: Double,
+    urlTweetCount: Long,
+    urlPercentage: Double,
+    picTweetCount: Long,
+    picPercentage: Double,
+    hashtagTweetCount: Long,
+    hashtagPercentage: Double): TwitterStats =
+    TwitterStats(serverStart, ZonedDateTime.now(), tweetCount, emojiTweetCount, emojiPercentage, urlTweetCount, urlPercentage, picTweetCount, picPercentage, hashtagTweetCount, hashtagPercentage)
+
+  // https://typelevel.org/cats/api/cats/Applicative.html#ap9[A0,A1,A2,A3,A4,A5,A6,A7,A8,Z](f:F[(A0,A1,A2,A3,A4,A5,A6,A7,A8)=%3EZ])(f0:F[A0],f1:F[A1],f2:F[A2],f3:F[A3],f4:F[A4],f5:F[A5],f6:F[A6],f7:F[A7],f8:F[A8]):F[Z]
+  def getTwitterStats: IO[TwitterStats] =
+    Applicative[IO].ap9(IO(makeTwitterStats _))(
+      TweetCount.getCount,
+      EmojiTweetCount.getCount,
+      EmojiTweetCount.getPercentage,
+      URLTweetCount.getCount,
+      URLTweetCount.getPercentage,
+      PicTweetCount.getCount,
+      PicTweetCount.getPercentage,
+      HashtagTweetCount.getCount,
+      HashtagTweetCount.getPercentage
+    )
 
   def getTwitterStatsJSON: IO[Json] =
     getTwitterStats.map(_.asJson)
-
-  // val helloStream: Stream[IO, Unit] = Stream.eval_(IO(println("hello!")))
-
-  // val oneSecondStream = Scheduler[IO](2).flatMap(_.awakeEvery[IO](1.second))
-
-  // val oneSecondHello: Stream[IO, Unit] = oneSecondStream.flatMap(_ => helloStream)
-
-  // val twitterStatsJsonStream: Stream[IO, Json] =
-  //   oneSecondStream.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
-
-  // val twitterStatsJsonStream2: Stream[IO, Json] =
-  //   Stream.repeatEval(IO(getTwitterStatsJSON))
-
-  // val printTwitterStatsStream: Stream[IO, Unit] =
-  //   twitterStatsJsonStream.map(json => println(json))
-
-  // def oneSecondStreamD = Scheduler[IO](2).flatMap(_.awakeEvery[IO](1.second))
-  // def twitterStatsJsonStream3: Stream[IO, Json] =
-  //   oneSecondStreamD.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
-  
 
 }

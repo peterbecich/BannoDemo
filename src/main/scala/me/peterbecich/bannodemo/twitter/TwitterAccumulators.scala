@@ -29,6 +29,11 @@ object TwitterAccumulators {
     def describe: IO[String] = getCount.map(i => name + ": " + i)
     def increment: IO[Unit] = IO { count.incrementAndGet(); () }
 
+    def getPercentage: IO[Double] = for {
+      tweetCount <- TweetCount.getCount
+      accCount <- getCount
+    } yield accCount.toDouble / tweetCount
+
     // TODO do this in IO
     // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
     
