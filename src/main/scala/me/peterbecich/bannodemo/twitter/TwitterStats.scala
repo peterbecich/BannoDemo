@@ -43,38 +43,35 @@ object TwitterStats {
       json"""{"serverStartTimestamp": ${stats.serverStartTimestamp.toString}, "statsTimestamp": ${stats.statsTimestamp.toString}, "tweetCount": ${stats.tweetCount}, "emojiTweetCount": ${stats.emojiTweetCount}, "urlTweetCount": ${stats.urlTweetCount}, "picTweetCount": ${stats.picTweetCount}, "hashtagTweetCount": ${stats.hashtagTweetCount}}"""
     }
 
-  def getTwitterStats: TwitterStats =
-    TwitterStats(
-      serverStart,
-      ZonedDateTime.now(),
-      TweetCount.getCount,
-      EmojiTweetCount.getCount,
-      URLTweetCount.getCount,
-      PicTweetCount.getCount,
-      HashtagTweetCount.getCount
-    )
+  def getTwitterStats: IO[TwitterStats] = for {
+    tweetCount <- TweetCount.getCount
+    emojiCount <- EmojiTweetCount.getCount
+    urlCount <- URLTweetCount.getCount
+    picCount <- PicTweetCount.getCount
+    hashtagCount <- HashtagTweetCount.getCount
+  } yield TwitterStats(serverStart, ZonedDateTime.now(), tweetCount, emojiCount, urlCount, picCount, hashtagCount)
 
-  def getTwitterStatsJSON: Json =
-    getTwitterStats.asJson
+  def getTwitterStatsJSON: IO[Json] =
+    getTwitterStats.map(_.asJson)
 
-  val helloStream: Stream[IO, Unit] = Stream.eval_(IO(println("hello!")))
+  // val helloStream: Stream[IO, Unit] = Stream.eval_(IO(println("hello!")))
 
-  val oneSecondStream = Scheduler[IO](2).flatMap(_.awakeEvery[IO](1.second))
+  // val oneSecondStream = Scheduler[IO](2).flatMap(_.awakeEvery[IO](1.second))
 
-  val oneSecondHello: Stream[IO, Unit] = oneSecondStream.flatMap(_ => helloStream)
+  // val oneSecondHello: Stream[IO, Unit] = oneSecondStream.flatMap(_ => helloStream)
 
-  val twitterStatsJsonStream: Stream[IO, Json] =
-    oneSecondStream.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
+  // val twitterStatsJsonStream: Stream[IO, Json] =
+  //   oneSecondStream.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
 
-  val twitterStatsJsonStream2: Stream[IO, Json] =
-    Stream.repeatEval(IO(getTwitterStatsJSON))
+  // val twitterStatsJsonStream2: Stream[IO, Json] =
+  //   Stream.repeatEval(IO(getTwitterStatsJSON))
 
-  val printTwitterStatsStream: Stream[IO, Unit] =
-    twitterStatsJsonStream.map(json => println(json))
+  // val printTwitterStatsStream: Stream[IO, Unit] =
+  //   twitterStatsJsonStream.map(json => println(json))
 
-  def oneSecondStreamD = Scheduler[IO](2).flatMap(_.awakeEvery[IO](1.second))
-  def twitterStatsJsonStream3: Stream[IO, Json] =
-    oneSecondStreamD.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
+  // def oneSecondStreamD = Scheduler[IO](2).flatMap(_.awakeEvery[IO](1.second))
+  // def twitterStatsJsonStream3: Stream[IO, Json] =
+  //   oneSecondStreamD.flatMap(_ => Stream.eval(IO(getTwitterStatsJSON)))
   
 
 }

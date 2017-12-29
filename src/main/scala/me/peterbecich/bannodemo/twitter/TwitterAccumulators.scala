@@ -8,7 +8,7 @@ import cats._
 import cats.implicits._
 import cats.syntax.all._
 import cats.effect.{IO, Sync}
-import fs2.{Stream, Pipe}
+import fs2._
 
 /*
  https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/package-summary.html
@@ -25,17 +25,18 @@ object TwitterAccumulators {
 
     private val count: AtomicLong = new AtomicLong(0);
 
-    def getCount: Long = count.get()
-    def describe: String = name + ": " + getCount.toString
+    def getCount: IO[Long] = IO(count.get())
+    def describe: IO[String] = getCount.map(i => name + ": " + i)
+    def increment: IO[Unit] = IO { count.incrementAndGet(); () }
 
     // TODO do this in IO
     // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
     
-     def accumulatorPipe: Pipe[IO, Tweet, Tweet] =
+    def accumulatorPipe: Pipe[IO, Tweet, Tweet] =
       (input: Stream[IO, Tweet]) => input.flatMap { tweet =>
-        if (predicate(tweet))
-          count.incrementAndGet()
-        Stream.emit(tweet)
+        if (predicate(tweet)) {
+          Stream.eval_(increment).flatMap { (_: Nothing) => Stream.emit(tweet) }
+        } else Stream.emit(tweet)
       }
   }
 

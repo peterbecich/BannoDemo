@@ -40,6 +40,9 @@ object TwitterQueue {
   val createTwitterQueue: IO[Queue[IO, Tweet]] = Queue.unbounded[IO, Tweet]
 
   // TODO replace this! enqueue safely
+  // TODO enqueue in chunks, here
+  // chunks used poorly, right now
+  // https://youtu.be/HM0mOu5o2uA
   def unsafeTweetEnqueue(queue: Queue[IO, Tweet]):
       PartialFunction[StreamingMessage, Unit] = {
     case tweet: Tweet =>
@@ -65,7 +68,7 @@ object TwitterQueueExample {
 
   val printTwitter: IO[Unit] = TwitterQueue.createTwitterStream.flatMap { twitterStream =>
     twitterStream
-      .map(t => t.user.map(_.name).getOrElse("nobody"))
+      .map(tweet => tweet.user.map(_.name).getOrElse("nobody"))
       .intersperse("\n")
       // .through(text.lines)
       .through(text.utf8Encode)
