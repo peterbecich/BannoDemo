@@ -13,7 +13,9 @@ import fs2._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import java.time.ZonedDateTime
+import java.time.{LocalDateTime, ZonedDateTime}
+
+import com.danielasfregola.twitter4s.entities.Tweet
 
 import TwitterAccumulators._
 
@@ -41,6 +43,13 @@ case class TwitterStats(
 )
 
 object TwitterStats {
+
+  // http://www.java67.com/2016/03/how-to-convert-date-to-localdatetime-in-java8-example.html
+  // TODO don't use server's time zone for all tweet timestamps
+  implicit def dateToLocalDateTime(date: java.util.Date): LocalDateTime =
+    LocalDateTime.ofInstant(date.toInstant(), serverStart.getZone())
+
+  def getTweetTime(tweet: Tweet): LocalDateTime = dateToLocalDateTime(tweet.created_at)
 
   implicit val ZonedDateTimeEncoder: Encoder[ZonedDateTime] =
     Encoder.instance { zonedDateTime => json"""${zonedDateTime.toString}""" }

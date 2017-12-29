@@ -34,14 +34,6 @@ object TwitterAccumulators {
         describe.flatMap { s => IO ( println(s) ) }
     }
 
-
-
-    // IO {
-    //   val n = count.incrementAndGet()
-    //   if (n % 1000 == 0) println (
-    //   ()
-    // }
-
     def getPercentage: IO[Double] = for {
       tweetCount <- TweetCount.getCount
       accCount <- getCount

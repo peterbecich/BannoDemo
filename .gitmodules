@@ -1,3 +1,6 @@
 [submodule "BannoDemo-frontend"]
 	path = BannoDemo-frontend
 	url = git@github.com:peterbecich/BannoDemo-frontend.git
+[submodule "src/main/resources/emoji-data"]
+	path = src/main/resources/emoji-data
+	url = git@github.com:iamcal/emoji-data.git
