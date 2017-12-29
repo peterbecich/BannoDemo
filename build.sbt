@@ -1,4 +1,4 @@
-val Http4sVersion = "0.18.0-M5"
+val Http4sVersion = "0.18.0-M7"
 val Specs2Version = "4.0.0"
 val LogbackVersion = "1.2.3"
 
@@ -23,6 +23,7 @@ dockerfile in docker := {
     from("java")
     add(artifact, artifactTargetPath)
     copy(baseDirectory(_ / "BannoDemo-frontend" / "static").value, file("/srv/static"))
+    copy(baseDirectory(_ / "src" / "main" / "resources" / "emoji-data" ).value, file("/srv/emoji-data"))
     entryPoint("java", "-jar", artifactTargetPath)
   }
 }
@@ -40,13 +41,14 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-blaze-client"          % Http4sVersion,
       "io.circe" % "circe-generic_2.12" % "0.9.0-M3",
       "io.circe" % "circe-literal_2.12" % "0.9.0-M3",
-      "co.fs2" %% "fs2-core" % "0.10.0-M8",
-      "co.fs2" %% "fs2-io" % "0.10.0-M8",
-      "org.typelevel" %% "cats-core" % "1.0.0-RC2",
+      "co.fs2" %% "fs2-core" % "0.10.0-M10",
+      "co.fs2" %% "fs2-io" % "0.10.0-M10",
+      "org.typelevel" %% "cats-core" % "1.0.0",
       "com.danielasfregola" %% "twitter4s" % "5.3",
       "org.specs2"     %% "specs2-core"          % Specs2Version % "test",
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion,
-      "com.typesafe" % "config" % "1.3.1"
+      "com.typesafe" % "config" % "1.3.1",
+      "org.apache.commons" % "commons-collections4" % "4.1"
     )
   )
 
