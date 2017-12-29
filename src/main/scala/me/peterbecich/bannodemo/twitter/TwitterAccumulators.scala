@@ -27,7 +27,20 @@ object TwitterAccumulators {
 
     def getCount: IO[Long] = IO(count.get())
     def describe: IO[String] = getCount.map(i => name + ": " + i)
-    def increment: IO[Unit] = IO { count.incrementAndGet(); () }
+    def increment: IO[Unit] = IO(count.incrementAndGet()).flatMap { n =>
+      if (n % 1000 != 0)
+        IO (())
+      else
+        describe.flatMap { s => IO ( println(s) ) }
+    }
+
+
+
+    // IO {
+    //   val n = count.incrementAndGet()
+    //   if (n % 1000 == 0) println (
+    //   ()
+    // }
 
     def getPercentage: IO[Double] = for {
       tweetCount <- TweetCount.getCount
@@ -40,7 +53,7 @@ object TwitterAccumulators {
     def accumulatorPipe: Pipe[IO, Tweet, Tweet] =
       (input: Stream[IO, Tweet]) => input.flatMap { tweet =>
         if (predicate(tweet)) {
-          Stream.eval_(increment).flatMap { (_: Nothing) => Stream.emit(tweet) }
+          Stream.eval(increment).flatMap { (_: Unit) => Stream.emit(tweet) }
         } else Stream.emit(tweet)
       }
   }

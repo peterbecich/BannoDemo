@@ -45,6 +45,9 @@ object TwitterStats {
   implicit val ZonedDateTimeEncoder: Encoder[ZonedDateTime] =
     Encoder.instance { zonedDateTime => json"""${zonedDateTime.toString}""" }
 
+  /*
+   http://circe.github.io/circe/api/io/circe/numbers/BiggerDecimal.html
+   */
   implicit val statsEncoder: Encoder[TwitterStats] = deriveEncoder
 
   private def makeTwitterStats(
