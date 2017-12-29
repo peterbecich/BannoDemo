@@ -126,7 +126,7 @@ object TwitterAccumulators {
 //       .map(t => t.user.map(_.name).getOrElse("nobody"))
 //       .intersperse("\n")
 //       .through(text.utf8Encode)
-//       // .observe(io.stdout)
+//       .observe(io.stdout)
 //       .drain.run
 //   }
 
