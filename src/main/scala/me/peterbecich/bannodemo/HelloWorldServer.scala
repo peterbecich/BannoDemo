@@ -75,7 +75,7 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
       .bindHttp(8080, "0.0.0.0")
       .mountService(corsOriginService, "/")
       .serve
-      .concurrently((Stream.eval_(TwitterAccumulators.accumulateTwitter)))
+      .concurrently(Stream.eval_(TwitterAccumulators.accumulateTwitter))
 
   // Stream.eval_(TwitterAccumulators.accumulateTwitter).flatMap { (_: Nothing) =>
   //   BlazeBuilder[IO]

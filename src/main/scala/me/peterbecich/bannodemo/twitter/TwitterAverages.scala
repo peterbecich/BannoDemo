@@ -27,6 +27,10 @@ object TwitterAverages {
   type TimeTable = TrieMap[LocalDateTime, Long]
   def createTimeTableSignal: IO[Signal[IO, TimeTable]] =
     Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
+
+
+  def printTimeTableSize(sig: Signal[IO, TimeTable]): Stream[IO, Unit] =
+    sig.continuous.flatMap { timeTable => Stream.eval_(IO(println(timeTable.size))) }
   
   abstract class TwitterAverage {
     val name: String
@@ -106,11 +110,13 @@ object TwitterAverageExample {
     TwitterQueue.createTwitterStream.flatMap { twitterStream =>
       TwitterAverages.createTimeTableSignal.flatMap { timeTableSignal => 
         twitterStream.through(TweetAverage.averagePipe(timeTableSignal))
-          .map(_.toString)
+          .map( tweet => tweet.user.map(_.name).getOrElse("no name") )
           .intersperse("\n")
           .through(text.utf8Encode)
-          .observe(io.stdout)
-          .drain.run
+          // .observe(io.stdout)
+          .drain
+          .concurrently(printTimeTableSize(timeTableSignal).drain)
+          .run
       }
     }
 
