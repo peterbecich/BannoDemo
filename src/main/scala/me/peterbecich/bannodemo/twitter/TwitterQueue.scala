@@ -77,31 +77,31 @@ object TwitterQueue {
 
 }
 
-object TwitterQueueExample {
+// object TwitterQueueExample {
 
-  import fs2._
+//   import fs2._
 
-  // val printTwitter = for (
-  //   twitterStream <- TwitterQueue.createTwitterStream
-  //   val drained = twitterStream.map(_.text).take(64).through(text.utf8Encode).observe(io.stdout).drain.run
-  //   // val drained = twitterStream.map(_.text).through(text.utf8Encode).observe(io.stdout).drain
-  // ) yield drained  // TODO do this without yield
+//   // val printTwitter = for (
+//   //   twitterStream <- TwitterQueue.createTwitterStream
+//   //   val drained = twitterStream.map(_.text).take(64).through(text.utf8Encode).observe(io.stdout).drain.run
+//   //   // val drained = twitterStream.map(_.text).through(text.utf8Encode).observe(io.stdout).drain
+//   // ) yield drained  // TODO do this without yield
 
-  val printTwitter: IO[Unit] = TwitterQueue.createTwitterStream.flatMap { twitterStream =>
-    twitterStream
-      .map(tweet => tweet.user.map(_.name).getOrElse("nobody"))
-      .intersperse("\n")
-      // .through(text.lines)
-      .through(text.utf8Encode)
-      .observe(io.stdout)
-      .drain.run
-  }
+//   val printTwitter: IO[Unit] = TwitterQueue.createTwitterStream.flatMap { twitterStream =>
+//     twitterStream
+//       .map(tweet => tweet.user.map(_.name).getOrElse("nobody"))
+//       .intersperse("\n")
+//       // .through(text.lines)
+//       .through(text.utf8Encode)
+//       .observe(io.stdout)
+//       .drain.run
+//   }
 
-  def main(args: Array[String]): Unit = {
-    println("twitter queue example, with FS2")
+//   def main(args: Array[String]): Unit = {
+//     println("twitter queue example, with FS2")
 
-    printTwitter.unsafeRunSync()
-  }
+//     printTwitter.unsafeRunSync()
+//   }
 
 
-}
+// }

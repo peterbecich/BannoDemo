@@ -18,18 +18,18 @@ import com.danielasfregola.twitter4s.entities.streaming.StreamingMessage
  https://github.com/DanielaSfregola/twitter4s
  */
 
-object OAuthSample extends App {
+// object OAuthSample extends App {
 
-  println("OAuth Sample")
+//   println("OAuth Sample")
   
-  val streamingClient = TwitterStreamingClient()
+//   val streamingClient = TwitterStreamingClient()
 
-  def printTweetText: PartialFunction[StreamingMessage, Unit] = {
-    case tweet: Tweet => println(tweet.text)
-  }
+//   def printTweetText: PartialFunction[StreamingMessage, Unit] = {
+//     case tweet: Tweet => println(tweet.text)
+//   }
 
-  streamingClient.sampleStatuses(stall_warnings = true)(printTweetText)
+//   streamingClient.sampleStatuses(stall_warnings = true)(printTweetText)
 
 
 
-}
+// }

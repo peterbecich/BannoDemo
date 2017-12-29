@@ -60,9 +60,9 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
     //   Ok(TwitterStats.twitterStatsJsonStream3)
     // http://http4s.org/v0.18/static/
     case GET -> Root / "bannoDemo" =>
-      StaticFile.fromFile[IO](new File("BannoDemo-frontend/static/index.html")).getOrElseF(NotFound())
+      StaticFile.fromFile[IO](new File("/srv/static/index.html")).getOrElseF(NotFound())
     case GET -> Root / filename =>
-      StaticFile.fromFile[IO](new File("BannoDemo-frontend/static/"++filename)).getOrElseF(NotFound())
+      StaticFile.fromFile[IO](new File("/srv/static/"++filename)).getOrElseF(NotFound())
 
   }
 

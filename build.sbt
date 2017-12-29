@@ -22,6 +22,7 @@ dockerfile in docker := {
   new Dockerfile {
     from("java")
     add(artifact, artifactTargetPath)
+    copy(baseDirectory(_ / "BannoDemo-frontend" / "static").value, file("/srv/static"))
     entryPoint("java", "-jar", artifactTargetPath)
   }
 }

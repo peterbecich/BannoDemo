@@ -17,3 +17,5 @@ project.vim
 .ensime_cache/
 *.db
 *~
+
+.env

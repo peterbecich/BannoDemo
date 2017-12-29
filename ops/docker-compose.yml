@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  banno-demo:
+    build: .
+    image: peterbecich/bannodemo:latest
+    ports:
+      - "0.0.0.0:80:8080"
+    environment:
+      - TWITTER_CONSUMER_TOKEN_KEY=${TWITTER_CONSUMER_TOKEN_KEY}
+      - TWITTER_CONSUMER_TOKEN_SECRET=${TWITTER_CONSUMER_TOKEN_SECRET}
+      - TWITTER_ACCESS_TOKEN_KEY=${TWITTER_ACCESS_TOKEN_KEY}
+      - TWITTER_ACCESS_TOKEN_SECRET=${TWITTER_ACCESS_TOKEN_SECRET}
+    deploy:
+      replicas: 1
