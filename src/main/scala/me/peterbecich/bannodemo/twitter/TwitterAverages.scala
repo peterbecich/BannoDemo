@@ -22,8 +22,8 @@ import scala.concurrent.duration._
 
 object TwitterAverages {
 
-  //val hour: Long = 60*60
-  val hour: Long = 20
+  val hour: Long = 60*60
+  // val hour: Long = 600
 
   // Time Table is a hashmap of the prior 3600 seconds
   type TimeTable = TrieMap[LocalDateTime, Long]

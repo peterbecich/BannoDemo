@@ -47,16 +47,31 @@ object TwitterStats {
   import cats._
   import cats.implicits._
 
-  val collectStats: IO[Unit] = for {
-    twitterStream <- TwitterQueue.createTwitterStream
-    averagePipe <- TwitterAverages.makeConcatenatedAveragePipe
-    countPipe <- Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe)
-  } yield {
-    twitterStream
-      .through(averagePipe)
-      .through(countPipe)
-      .drain.run
-  }
+  val collectStats: IO[Unit] = 
+    IO(println("acquire Twitter stream")).flatMap { _ =>
+      TwitterQueue.createTwitterStream.flatMap { twitterStream =>
+        Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe).flatMap { countPipe =>
+          TwitterAverages.makeConcatenatedAveragePipe.flatMap { averagePipe =>
+            twitterStream
+              .through(countPipe)
+              .through(averagePipe)
+              .drain
+              .run
+          }
+        }
+      }
+    }
+
+  // for {
+  //   twitterStream <- TwitterQueue.createTwitterStream
+  //   averagePipe <- TwitterAverages.makeConcatenatedAveragePipe
+  //   countPipe <- Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe)
+  // } yield {
+  //   twitterStream
+  //     .through(averagePipe)
+  //     .through(countPipe)
+  //     .drain.run
+  // }
 
 
 

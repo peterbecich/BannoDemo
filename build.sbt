@@ -14,6 +14,8 @@ imageNames in docker := Seq(
   ImageName(s"peterbecich/${name.value}:latest")
 )
 
+mainClass in assembly := Some("me.peterbecich.bannodemo.HelloWorldServer")
+
 dockerfile in docker := {
   // The assembly task generates a fat JAR file
   val artifact: File = assembly.value
