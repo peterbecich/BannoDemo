@@ -44,6 +44,22 @@ case class TwitterStats(
 
 object TwitterStats {
 
+  import cats._
+  import cats.implicits._
+
+  val collectStats: IO[Unit] = for {
+    twitterStream <- TwitterQueue.createTwitterStream
+    averagePipe <- TwitterAverages.makeConcatenatedAveragePipe
+    countPipe <- Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe)
+  } yield {
+    twitterStream
+      .through(averagePipe)
+      .through(countPipe)
+      .drain.run
+  }
+
+
+
   // http://www.java67.com/2016/03/how-to-convert-date-to-localdatetime-in-java8-example.html
   // TODO don't use server's time zone for all tweet timestamps
   implicit def dateToLocalDateTime(date: java.util.Date): LocalDateTime =

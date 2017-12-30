@@ -98,21 +98,11 @@ object TwitterAccumulators {
     def empty: Pipe[IO, A, A] = passThru[A]
   }
 
-  val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
+  val concatenatedAccumulatorPipe: Pipe[IO, Tweet, Tweet] =
     Foldable[List].foldMap(accumulators)(_.accumulatorPipe)(pipeConcatenationMonoid[Tweet])
 
   // val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
   //   TweetCount.accumulatorPipe.andThen(EmojiTweetCount.accumulatorPipe)
-
-  val accumulateTwitter: IO[Unit] =
-    TwitterQueue.createTwitterStream.flatMap { twitterStream =>
-      TwitterAverages.makeConcatenatedAveragePipes.flatMap { concatenatedAveragePipes =>
-        twitterStream
-          .through(concatenatedAccumulatorPipes)
-          .through(concatenatedAveragePipes)
-          .drain.run
-      }
-    }
 
 }
 
