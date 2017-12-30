@@ -20,6 +20,7 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import me.peterbecich.bannodemo.twitter.TwitterAccumulators
+import me.peterbecich.bannodemo.twitter.TwitterAverages
 import me.peterbecich.bannodemo.twitter.TwitterStats
 import me.peterbecich.bannodemo.twitter.TwitterStats._
 

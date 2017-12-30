@@ -104,11 +104,16 @@ object TwitterAccumulators {
   // val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
   //   TweetCount.accumulatorPipe.andThen(EmojiTweetCount.accumulatorPipe)
 
-  val accumulateTwitter: IO[Unit] = TwitterQueue.createTwitterStream.flatMap { twitterStream =>
-    twitterStream
-      .through(concatenatedAccumulatorPipes)
-      .drain.run
-  }
+  val accumulateTwitter: IO[Unit] =
+    TwitterQueue.createTwitterStream.flatMap { twitterStream =>
+      TwitterAverages.makeConcatenatedAveragePipes.flatMap { concatenatedAveragePipes =>
+        twitterStream
+          .through(concatenatedAccumulatorPipes)
+          .through(concatenatedAveragePipes)
+          .drain.run
+      }
+    }
+
 }
 
 
