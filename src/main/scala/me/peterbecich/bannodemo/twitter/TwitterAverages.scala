@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit
 import me.peterbecich.bannodemo.twitter.TwitterStats.getTweetTime
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 object TwitterAverages {
 
@@ -150,11 +151,17 @@ object TwitterAverages {
     //     .observe(fs2.io.stdout)
     //     .drain
 
+    lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](2)
+
     private lazy val recentCount: Stream[IO, (LocalDateTime, Long, Long)] =
-      timeTableSignal.discrete.flatMap { timeTable =>
-        Stream.eval(IO(LocalDateTime.now()).map { _.truncatedTo(ChronoUnit.SECONDS) }).map { now =>
-          val minus10Seconds = now.minus(Duration.ofSeconds(10))
-          (minus10Seconds, timeTable.get(minus10Seconds).getOrElse(0), timeTable.size)
+      schedulerStream.flatMap { scheduler =>
+        scheduler.fixedRate(2.second)(IO.ioEffect, global).flatMap { _ =>
+          Stream.eval(timeTableSignal.get).flatMap { timeTable =>
+            Stream.eval(IO(LocalDateTime.now()).map { _.truncatedTo(ChronoUnit.SECONDS) }).map { now =>
+              val minus10Seconds = now.minus(Duration.ofSeconds(10))
+              (minus10Seconds, timeTable.get(minus10Seconds).getOrElse(0), timeTable.size)
+            }
+          }
         }
       }
 
