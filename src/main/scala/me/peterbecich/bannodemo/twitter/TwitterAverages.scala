@@ -12,7 +12,7 @@ import com.danielasfregola.twitter4s.entities.Tweet
 
 import scala.collection.concurrent.TrieMap
 
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.{LocalDateTime, ZoneOffset, Duration}
 import java.time.temporal.ChronoUnit
 
 import me.peterbecich.bannodemo.twitter.TwitterStats.getTweetTime
@@ -33,15 +33,15 @@ object TwitterAverages {
     val timeTableSignal: Signal[IO, TimeTable]
     val predicate: Tweet => Boolean
 
+    // for the timestamp key, increment the count value
     private def incrementTime(timestamp: LocalDateTime): IO[Unit] =
       timeTableSignal.get.flatMap { timeTable =>
         IO {
-          println("incrementTime")
           val timestampTruncated: LocalDateTime =
             timestamp.truncatedTo(ChronoUnit.SECONDS)
           val count: Long = timeTable.getOrElse(timestampTruncated, 0)
-          if(count > 0 && count % 15 == 0)
-            println(name+" "+timestamp.toString()+" count: "+count+" time table size: "+timeTable.size)
+          // if(count > 0  && count % 15 == 0)
+          //   println(name+" "+timestamp.toString()+" count: "+count+" time table size: "+timeTable.size)
           // TODO potential for miscount with concurrent access???
           timeTable.put(timestampTruncated, count+1)
           ()
@@ -63,15 +63,23 @@ object TwitterAverages {
         timeTable2
       }.map(_ => ())
 
+    // For every input Tweet at the head of the pipe,
+    // increment count of timestamp held by the Signal.
+    // Pass tweet through to tail of the pipe
     private def incrementTimePipe: Pipe[IO, Tweet, Tweet] =
       (tweetInput: Stream[IO, Tweet]) =>
     tweetInput.flatMap { tweet =>
-      val timestamp = getTweetTime(tweet)
-      Stream.eval(incrementTime(timestamp)).flatMap { _ =>
-        Stream.emit(tweet)
-      }
+      if(predicate(tweet)) {
+        val timestamp = getTweetTime(tweet)
+        Stream.eval(incrementTime(timestamp)).flatMap { _ =>
+          Stream.emit(tweet)
+        }
+      } else Stream.emit(tweet)
     }
 
+    // For every input Tweet at head of the pipe,
+    // clean up the old timestamps held by the Signal.
+    // Remove all timestamps past a certain age
     private def filterTimeThresholdPipe: Pipe[IO, Tweet, Tweet] =
       (tweets: Stream[IO, Tweet]) =>
     tweets.flatMap { tweet =>
@@ -80,8 +88,7 @@ object TwitterAverages {
       }
     }
 
-    private def truncateTimeTable(secondsThreshold: Long)
-      (timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
+    private def truncateTimeTable(secondsThreshold: Long): IO[TimeTable] =
       timeTableSignal.get.map { timeTable =>
         val zone = ZoneOffset.ofHours(0)
         val now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
@@ -93,13 +100,13 @@ object TwitterAverages {
         timeTable2
       }
 
-    private def priorHourTimeTable(timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
-      truncateTimeTable(hour)(timeTableSignal)
+    private def priorHourTimeTable: IO[TimeTable] =
+      truncateTimeTable(hour)
 
-    private def priorMinuteTimeTable(timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
-       truncateTimeTable(60)(timeTableSignal)
+    private def priorMinuteTimeTable: IO[TimeTable] =
+       truncateTimeTable(60)
 
-    private def priorSecondTimeTable(timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
+    private def priorSecondTimeTable: IO[TimeTable] =
       timeTableSignal.get.map { timeTable =>
         val zone = ZoneOffset.ofHours(0)
         val now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
@@ -108,32 +115,71 @@ object TwitterAverages {
 
     // TODO should these be vals?
     def getHourSum: IO[Long] =
-      priorHourTimeTable(timeTableSignal).map { timeTable =>
+      priorHourTimeTable.map { timeTable =>
         timeTable.values.sum
       }
 
     def getMinuteSum: IO[Long] =
-      priorMinuteTimeTable(timeTableSignal).map { timeTable =>
+      priorMinuteTimeTable.map { timeTable =>
         timeTable.values.sum
       }
 
     def getSecondSum: IO[Long] =
-      priorSecondTimeTable(timeTableSignal).map { timeTable =>
+      priorSecondTimeTable.map { timeTable =>
         timeTable.values.sum
       }
+
+    // Returns count of Tweets for now - 10 seconds
+    // and number of keys in time table
+    // private def getRecentCount: IO[(LocalDateTime, Long, Long)] =
+    //   IO(LocalDateTime.now()).map { _.truncatedTo(ChronoUnit.SECONDS) }.flatMap { now =>
+    //     timeTableSignal.get.map { timeTable =>
+    //       val minus10Seconds = now.minus(Duration.ofSeconds(10))
+    //       (minus10Seconds, timeTable.get(minus10Seconds).getOrElse(0), timeTable.size)
+    //     }
+    //   }
+
+
+    // private val printRecentCountSink: Sink[IO, Tweet] = (_: Stream[IO, Tweet]) =>
+    //   Stream
+    //     .repeatEval(getRecentCount)
+    //     .map { case (ts, count, timeTableSize) =>
+    //       name + " " + ts.toString() + " count: " + count + " time table size: " + timeTableSize}
+    //     .intersperse("\n")
+    //     .through(fs2.text.utf8Encode)
+    //     .observe(fs2.io.stdout)
+    //     .drain
+
+    private lazy val recentCount: Stream[IO, (LocalDateTime, Long, Long)] =
+      timeTableSignal.discrete.flatMap { timeTable =>
+        Stream.eval(IO(LocalDateTime.now()).map { _.truncatedTo(ChronoUnit.SECONDS) }).map { now =>
+          val minus10Seconds = now.minus(Duration.ofSeconds(10))
+          (minus10Seconds, timeTable.get(minus10Seconds).getOrElse(0), timeTable.size)
+        }
+      }
+
+
+    lazy val printRecentCount: Stream[IO, Unit] = recentCount
+        .map { case (ts, count, timeTableSize) =>
+          name + " " + ts.toString() + " count: " + count + " time table size: " + timeTableSize + "\n"}
+        .intersperse("\n")
+        .through(fs2.text.utf8Encode)
+        .observe(fs2.io.stdout)
+        .drain
     
+    //  incrementTimePipe.andThen(filterTimeThresholdPipe)
     val averagePipe: Pipe[IO, Tweet, Tweet] =
-      incrementTimePipe.andThen(filterTimeThresholdPipe)
+      (s: Stream[IO, Tweet]) =>
+    incrementTimePipe(s)
+      .through(filterTimeThresholdPipe)
+      .concurrently(printRecentCount)
 
   }
 
-  def createTimeTableSignal: IO[Signal[IO, TimeTable]] =
+  private def createTimeTableSignal: IO[Signal[IO, TimeTable]] =
     Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
 
-  def printTimeTableSize(sig: Signal[IO, TimeTable]): Stream[IO, Unit] =
-    sig.continuous.flatMap { timeTable => Stream.eval_(IO(println(timeTable.size))) }
-
-  def makeAverage(_name: String, _predicate: Tweet => Boolean): IO[TwitterAverage] =
+  private def makeAverage(_name: String, _predicate: Tweet => Boolean): IO[TwitterAverage] =
     createTimeTableSignal.map { timeTableSignal_ =>
       new TwitterAverage {
         val name = _name
@@ -142,15 +188,15 @@ object TwitterAverages {
       }
     }
 
-  val tweetAverage = makeAverage("TweetAverage", (_) => true)
-  val emojiAverage = makeAverage("EmojiAverage", (_) => true)
+  private val tweetAverage: IO[TwitterAverage] = makeAverage("TweetAverage", (_) => true)
+  private val emojiAverage: IO[TwitterAverage] = makeAverage("EmojiAverage", (_) => true)
 
   val makeAverages: IO[List[TwitterAverage]] =
     Traverse[List].sequence(List(tweetAverage, emojiAverage))
 
-  def passThru[A]: Pipe[IO, A, A] = stream => stream
+  private def passThru[A]: Pipe[IO, A, A] = stream => stream
 
-  def pipeConcatenationMonoid[A] = new Monoid[Pipe[IO, A, A]] {
+  private def pipeConcatenationMonoid[A] = new Monoid[Pipe[IO, A, A]] {
     def combine(pipe1: Pipe[IO, A, A], pipe2: Pipe[IO, A, A]): Pipe[IO, A, A] =
       pipe1.andThen(pipe2)
     def empty: Pipe[IO, A, A] = passThru[A]
@@ -160,6 +206,8 @@ object TwitterAverages {
     makeAverages.map { averages =>
       Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid)
     }
+  // val makeConcatenatedAveragePipe: IO[Pipe[IO, Tweet, Tweet]] =
+  //   tweetAverage.map(_.averagePipe)
 }
 
 object TwitterAverageExample {
@@ -167,21 +215,35 @@ object TwitterAverageExample {
 
   import TwitterAverages._
 
-  val averageTwitter: IO[Unit] = for {
-    _ <- IO(println("begin averaging streaming"))
-    twitterStream <- TwitterQueue.createTwitterStream
-    averagePipe <- TwitterAverages.makeConcatenatedAveragePipe
-    _ <- IO(println("average pipe initialized"))
-  } yield {
-    twitterStream
-      .through(averagePipe)
-      .drain.run
-  }
+  // val averageTwitter: IO[] = {for {
+  //   _ <- IO(println("begin averaging streaming"))
+  //   twitterStream <- TwitterQueue.createTwitterStream
+  //   averagePipe <- TwitterAverages.makeConcatenatedAveragePipe
+  //   _ <- IO(println("acquired Twitter stream and average pipe"))
+  // } yield {
+  //   twitterStream
+  //     .through(averagePipe)
+  //     .drain.run
+  // }: IO[IO[Unit]] }
+
+  val averageTwitter2: IO[Unit] =
+    IO(println("acquire Twitter stream")).flatMap { _ =>
+      TwitterQueue.createTwitterStream.flatMap { twitterStream =>
+        TwitterAverages.makeConcatenatedAveragePipe.flatMap { averagePipe =>
+          IO(println("acquired Twitter stream and average pipe")).flatMap { _ =>
+            twitterStream
+              .through(averagePipe)
+              .drain
+              .run
+          }
+        }
+      }
+    }
 
   def main(args: Array[String]): Unit = {
     println("twitter averages example")
 
-    averageTwitter.unsafeRunSync()
+    averageTwitter2.unsafeRunSync()
   }
  
 }
