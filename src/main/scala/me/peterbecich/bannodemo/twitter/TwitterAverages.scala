@@ -26,18 +26,12 @@ object TwitterAverages {
 
   // Time Table is a hashmap of the prior 3600 seconds
   type TimeTable = TrieMap[LocalDateTime, Long]
-  def createTimeTableSignal: IO[Signal[IO, TimeTable]] =
-    Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
 
-  def printTimeTableSize(sig: Signal[IO, TimeTable]): Stream[IO, Unit] =
-    sig.continuous.flatMap { timeTable => Stream.eval_(IO(println(timeTable.size))) }
-  
-  //abstract class TwitterAverage(timeTableFoo: Signal[IO, TimeTable]) {
-  abstract class TwitterAverage {
+  // abstract class TwitterAverage {
+  abstract class TwitterAverage(timeTableSignal: Signal[IO, TimeTable]) {
     val name: String
 
-    private def incrementTime(timeTableSignal: Signal[IO, TimeTable])
-      (timestamp: LocalDateTime): IO[Unit] =
+    private def incrementTime(timestamp: LocalDateTime): IO[Unit] =
       timeTableSignal.get.flatMap { timeTable =>
         IO {
           // if(timeTable.size > 0 && timeTable.size % 5 == 0)
@@ -54,8 +48,7 @@ object TwitterAverages {
       }
 
     // remove timestamps from table if they are beyond a certain age, in seconds
-    private def filterTimeThreshold(secondsThreshold: Long = hour)
-      (timeTableSignal: Signal[IO, TimeTable]): IO[Unit] =
+    private def filterTimeThreshold(secondsThreshold: Long = hour): IO[Unit] =
       timeTableSignal.modify { timeTable =>
         // TODO investigate potential for lost data with concurrent calls to `modify` on Signal
         // TODO get time zones right
@@ -69,32 +62,22 @@ object TwitterAverages {
         timeTable2
       }.map(_ => ())
 
-    private def incrementTimePipe(timeTableSignal: Signal[IO, TimeTable]):
-        Pipe[IO, Tweet, Tweet] =
+    private def incrementTimePipe: Pipe[IO, Tweet, Tweet] =
       (tweetInput: Stream[IO, Tweet]) =>
     tweetInput.flatMap { tweet =>
       val timestamp = getTweetTime(tweet)
-      Stream.eval(incrementTime(timeTableSignal)(timestamp)).flatMap { _ =>
+      Stream.eval(incrementTime(timestamp)).flatMap { _ =>
         Stream.emit(tweet)
       }
     }
 
-    private def filterTimeThresholdPipe(timeTableSignal: Signal[IO, TimeTable]):
-        Pipe[IO, Tweet, Tweet] =
+    private def filterTimeThresholdPipe: Pipe[IO, Tweet, Tweet] =
       (tweets: Stream[IO, Tweet]) =>
     tweets.flatMap { tweet =>
-      Stream.eval(filterTimeThreshold(hour)(timeTableSignal)).flatMap { _ =>
+      Stream.eval(filterTimeThreshold(hour)).flatMap { _ =>
         Stream.emit(tweet)
       }
     }
-
-
-    def averagePipe(timeTableSignal: Signal[IO, TimeTable]): Pipe[IO, Tweet, Tweet] =
-      incrementTimePipe(timeTableSignal).andThen(filterTimeThresholdPipe(timeTableSignal))
-
-    def makeAveragePipe: IO[Pipe[IO, Tweet, Tweet]] =
-      createTimeTableSignal.map(averagePipe)
-
 
     private def truncateTimeTable(secondsThreshold: Long)
       (timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
@@ -137,18 +120,32 @@ object TwitterAverages {
         timeTable.values.sum
       }
     
+    val averagePipe: Pipe[IO, Tweet, Tweet] =
+      incrementTimePipe.andThen(filterTimeThresholdPipe)
 
   }
 
-  case object TweetAverage extends TwitterAverage {
-    val name = "TweetAverage"
-  }
+  def createTimeTableSignal: IO[Signal[IO, TimeTable]] =
+    Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
 
-  case object TweetAverage2 extends TwitterAverage {
-    val name = "TweetAverage2"
-  }
+  def printTimeTableSize(sig: Signal[IO, TimeTable]): Stream[IO, Unit] =
+    sig.continuous.flatMap { timeTable => Stream.eval_(IO(println(timeTable.size))) }
 
-  val averages = List(TweetAverage, TweetAverage2)
+  // case class TweetAverage(timeTableSignal: Signal[IO, TimeTable]) extends TwitterAverage(timeTableSignal) {
+  //   val name = "TweetAverage"
+  // }
+
+  def tweetAverage(timeTableSignal: Signal[IO, TimeTable]): TwitterAverage =
+    new TwitterAverage(timeTableSignal) {
+      val name = "TweetAverage"
+    }
+
+  val averages: IO[List[TwitterAverage]] =
+    Traverse[List](List(tweetAverage(_))){ average =>
+      createTimeTableSignal.flatMap { timeTableSignal =>
+        average(timeTableSignal)
+      }
+    }
 
   def passThru[A]: Pipe[IO, A, A] = stream => stream
 
@@ -158,14 +155,16 @@ object TwitterAverages {
     def empty: Pipe[IO, A, A] = passThru[A]
   }
 
-    // Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid[Tweet])
   
-  val makeListAveragePipes: IO[List[Pipe[IO, Tweet, Tweet]]] =
-    Traverse[List].sequence(averages.map(_.makeAveragePipe))
+  // val listAveragePipes: List[Pipe[IO, Tweet, Tweet]] =
+    // Traverse[List].sequence(averages.map(_.makeAveragePipe))
 
-  val makeConcatenatedAveragePipes: IO[Pipe[IO, Tweet, Tweet]] =
-    makeListAveragePipes.map { ll => Foldable[List].fold(ll)(pipeConcatenationMonoid[Tweet]) }
-  
+  // val makeConcatenatedAveragePipes: IO[Pipe[IO, Tweet, Tweet]] =
+  //   makeListAveragePipes.map { ll => Foldable[List].fold(ll)(pipeConcatenationMonoid[Tweet]) }
+
+  val concatenatedAveragePipes: Pipe[IO, Tweet, Tweet] =
+    Foldable[List].foldMap(averages)(average => average.averagePipe)(pipeConcatenationMonoid[Tweet])
+
 }
 
 object TwitterAverageExample {
@@ -173,16 +172,16 @@ object TwitterAverageExample {
 
   import TwitterAverages._
 
-  val averageTwitter: IO[Unit] =
-    TwitterQueue.createTwitterStream.flatMap { twitterStream =>
-      TwitterAverages.makeConcatenatedAveragePipes.flatMap { concatenatedAveragePipes => 
-        twitterStream
-          .through(concatenatedAveragePipes)
-          // .observe1 { (tweet) => IO { println(tweet.user.map(_.name).getOrElse("no name")) }}
-          .drain
-          .run
-      }
-    }
+  // val averageTwitter: IO[Unit] =
+  //   TwitterQueue.createTwitterStream.flatMap { twitterStream =>
+  //     TwitterAverages.makeConcatenatedAveragePipes.flatMap { concatenatedAveragePipes => 
+  //       twitterStream
+  //         .through(concatenatedAveragePipes)
+  //         // .observe1 { (tweet) => IO { println(tweet.user.map(_.name).getOrElse("no name")) }}
+  //         .drain
+  //         .run
+  //     }
+  //   }
   
 
   // def main(args: Array[String]): Unit = {
