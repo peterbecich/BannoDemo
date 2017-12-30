@@ -21,7 +21,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object TwitterAverages {
 
-  // val hour: Long = 60*60
+  //val hour: Long = 60*60
   val hour: Long = 20
 
   // Time Table is a hashmap of the prior 3600 seconds
@@ -29,10 +29,10 @@ object TwitterAverages {
   def createTimeTableSignal: IO[Signal[IO, TimeTable]] =
     Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
 
-
   def printTimeTableSize(sig: Signal[IO, TimeTable]): Stream[IO, Unit] =
     sig.continuous.flatMap { timeTable => Stream.eval_(IO(println(timeTable.size))) }
   
+  //abstract class TwitterAverage(timeTableFoo: Signal[IO, TimeTable]) {
   abstract class TwitterAverage {
     val name: String
 
@@ -56,7 +56,8 @@ object TwitterAverages {
     // remove timestamps from table if they are beyond a certain age, in seconds
     private def filterTimeThreshold(secondsThreshold: Long = hour)
       (timeTableSignal: Signal[IO, TimeTable]): IO[Unit] =
-      timeTableSignal.modify { timeTable => 
+      timeTableSignal.modify { timeTable =>
+        // TODO investigate potential for lost data with concurrent calls to `modify` on Signal
         // TODO get time zones right
         val zone = ZoneOffset.ofHours(0)
         val now = LocalDateTime.now()
@@ -94,6 +95,49 @@ object TwitterAverages {
     def makeAveragePipe: IO[Pipe[IO, Tweet, Tweet]] =
       createTimeTableSignal.map(averagePipe)
 
+
+    private def truncateTimeTable(secondsThreshold: Long)
+      (timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
+      timeTableSignal.get.map { timeTable =>
+        val zone = ZoneOffset.ofHours(0)
+        val now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
+        def diffUnderThreshold(ts1: LocalDateTime): Boolean = {
+          val diff = now.toEpochSecond(zone) - ts1.toEpochSecond(zone)
+          (diff) < secondsThreshold
+        }
+        val timeTable2 = timeTable.filter((kv) => diffUnderThreshold(kv._1))
+        timeTable2
+      }
+
+    private def priorHourTimeTable(timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
+      truncateTimeTable(hour)(timeTableSignal)
+
+    private def priorMinuteTimeTable(timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
+       truncateTimeTable(60)(timeTableSignal)
+
+    private def priorSecondTimeTable(timeTableSignal: Signal[IO, TimeTable]): IO[TimeTable] =
+      timeTableSignal.get.map { timeTable =>
+        val zone = ZoneOffset.ofHours(0)
+        val now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
+        timeTable.filter((kv) => kv._1 == now)
+      }
+    
+    def getHourSum(timeTableSignal: Signal[IO, TimeTable]): IO[Long] =
+      priorHourTimeTable(timeTableSignal).map { timeTable =>
+        timeTable.values.sum
+      }
+
+    def getMinuteSum(timeTableSignal: Signal[IO, TimeTable]): IO[Long] =
+      priorMinuteTimeTable(timeTableSignal).map { timeTable =>
+        timeTable.values.sum
+      }
+
+    def getSecondSum(timeTableSignal: Signal[IO, TimeTable]): IO[Long] =
+      priorSecondTimeTable(timeTableSignal).map { timeTable =>
+        timeTable.values.sum
+      }
+    
+
   }
 
   case object TweetAverage extends TwitterAverage {
@@ -129,23 +173,6 @@ object TwitterAverageExample {
 
   import TwitterAverages._
 
-  // .observe1 { (tweet) => IO { println(tweet.user.map(_.name).getOrElse("no name")) }}
-  // .concurrently(printTimeTableSize(timeTableSignal).drain)
-
-  // val averageTwitter: IO[Unit] =
-  //   TwitterQueue.createTwitterStream.flatMap { twitterStream =>
-  //     TwitterAverages.createTimeTableSignal.flatMap { timeTableSignal => 
-  //       twitterStream.through(TweetAverage.averagePipe(timeTableSignal))
-  //         .map( tweet => tweet.user.map(_.name).getOrElse("no name") )
-  //         .intersperse("\n")
-  //         .through(text.utf8Encode)
-  //         // .observe(io.stdout)
-  //         .drain
-  //         .run
-  //     }
-  //   }
-
-
   val averageTwitter: IO[Unit] =
     TwitterQueue.createTwitterStream.flatMap { twitterStream =>
       TwitterAverages.makeConcatenatedAveragePipes.flatMap { concatenatedAveragePipes => 
@@ -158,10 +185,10 @@ object TwitterAverageExample {
     }
   
 
-  def main(args: Array[String]): Unit = {
-    println("twitter averages example")
+  // def main(args: Array[String]): Unit = {
+  //   println("twitter averages example")
 
-    averageTwitter.unsafeRunSync()
-  }
+  //   averageTwitter.unsafeRunSync()
+  // }
  
 }
