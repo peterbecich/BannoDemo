@@ -99,6 +99,10 @@ object TwitterAverage {
         minuteCountAcc.average, minuteCountAcc.ts,
         hourCountAcc.average, hourCountAcc.ts
       )
+
+    // lazy val averagePayloadJsonStream: Stream[IO, io.circe.Json] =
+    //   averagePayloadStream.map(_.asJson)
+    
   }
 
   private def makeTimeTableSignal: IO[TimeTableSignal] =

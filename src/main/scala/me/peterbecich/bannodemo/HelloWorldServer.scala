@@ -38,7 +38,7 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
     allowCredentials = false,
     maxAge = 1.day.toSeconds
   )
-  def service(statsPayload: Stream[IO, TwitterAverages.JSON.AveragesPayload]) =
+  def service(statsPayload: Stream[IO, io.circe.Json]) =
     HttpService[IO] {
       case GET -> Root / "hello" / name =>
         Ok(Json.obj("message" -> Json.fromString(s"Hello, ${name}")))
@@ -55,14 +55,14 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
       case GET -> Root / "stats" =>
         Ok(TwitterStats.getTwitterStatsJSON)
       case GET -> Root / "averages" =>
-        Ok(statsPayload.take(1))
+        Ok(statsPayload)
       case GET -> Root / "bannoDemo" =>
         StaticFile.fromFile[IO](new File("/srv/static/index.html")).getOrElseF(NotFound())
       case GET -> Root / filename =>
         StaticFile.fromFile[IO](new File("/srv/static/"++filename)).getOrElseF(NotFound())
     }
 
-  def corsOriginService(statsPayload: Stream[IO, TwitterAverages.JSON.AveragesPayload]) =
+  def corsOriginService(statsPayload: Stream[IO, io.circe.Json]) =
     CORS(service(statsPayload), originConfig)
 
   def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, ExitCode] =

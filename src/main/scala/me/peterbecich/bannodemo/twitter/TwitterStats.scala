@@ -10,7 +10,7 @@ import io.circe.generic.semiauto._
 import org.http4s.circe._
 import me.peterbecich.bannodemo.JSON.Common._
 
-import fs2._
+import fs2.Stream
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -48,17 +48,19 @@ object TwitterStats {
   import cats._
   import cats.implicits._
 
-  val collectStats: IO[Stream[IO, TwitterAverages.JSON.AveragesPayload]] = 
+  val collectStats: IO[Stream[IO, io.circe.Json]] = 
     IO(println("acquire Twitter stream")).flatMap { _ =>
       TwitterQueue.createTwitterStream.flatMap { twitterStream =>
         Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe).flatMap { countPipe =>
           TwitterAverages.makeTwitterAverages.flatMap { case (averagePipe, averagesPayloadStream) =>
-            twitterStream
-              .through(countPipe)
-              .through(averagePipe)
-              .drain
-              .run
-              .map { _ => averagesPayloadStream }
+            val stats: IO[Unit] =
+              twitterStream
+                .through(countPipe)
+                .through(averagePipe)
+                .drain
+                .run
+
+            stats.runAsync { case _ => IO(()) } *> IO(averagesPayloadStream)
           }
         }
       }
