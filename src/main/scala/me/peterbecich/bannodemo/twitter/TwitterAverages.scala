@@ -23,8 +23,8 @@ import scala.concurrent.duration._
 
 object TwitterAverages {
 
-  // val hour: Long = 60*60
-  val hour: Long = 600
+  val minute: Long = 60
+  val hour: Long = minute*60
 
   // Time Table is a hashmap of the prior 3600 seconds
   type TimeTable = TrieMap[LocalDateTime, Long]
@@ -32,13 +32,29 @@ object TwitterAverages {
 
   // Set of Tweet counts taken from the Time Table;
   // used to produce averages
-  case class CountAccumulator(sum: Long, count: Long) {
-    val average: Double = sum * 1.0 / count
+  trait CountAccumulator {
+    val sum: Long
+    val count: Long
+    val seconds: Long
+    val average: Double = sum * 1.0 / seconds
     // def incCount: CountAccumulator = this.copy(sum, count+1)
-    def add(s: Long, n: Long): CountAccumulator = this.copy(sum+s, count+n)
+    def add(s: Long, n: Long): CountAccumulator
   }
 
-  type CountAccumulatorSignal = Signal[IO, CountAccumulator]
+  case class HourCountAccumulator(sum: Long = 0, count: Long = 0) extends CountAccumulator {
+    val seconds = hour
+    def add(s: Long, n: Long): HourCountAccumulator = this.copy(sum+s, count+n)
+  }
+  case class MinuteCountAccumulator(sum: Long = 0, count: Long = 0) extends CountAccumulator {
+    val seconds = minute
+    def add(s: Long, n: Long): MinuteCountAccumulator = this.copy(sum+s, count+n)
+  }
+  case class SecondCountAccumulator(sum: Long = 0, count: Long = 0) extends CountAccumulator {
+    val seconds = 1
+    def add(s: Long, n: Long): SecondCountAccumulator = this.copy(sum+s, count+n)
+  }
+
+  // type CountAccumulatorSignal = Signal[IO, CountAccumulator]
 
   // abstract class TwitterAverage {
   abstract class TwitterAverage {
@@ -49,18 +65,18 @@ object TwitterAverages {
     // Second, minute and hour averages will be calculated every second
 
     // Tweet counts for every second; count added every second
-    val secondCountAccumulatorSignal: CountAccumulatorSignal
+    val secondCountAccumulatorSignal: Signal[IO, SecondCountAccumulator]
     // Tweet counts for every minute; count added every second
-    val minuteCountAccumulatorSignal: CountAccumulatorSignal
+    val minuteCountAccumulatorSignal: Signal[IO, MinuteCountAccumulator]
     // Tweet counts for every hour; count added every second 
-    val hourCountAccumulatorSignal: CountAccumulatorSignal
+    val hourCountAccumulatorSignal: Signal[IO, HourCountAccumulator]
 
     val secondAverageSignal: ISignal[IO, Double] =
-      secondCountAccumulatorSignal.map { _.average }
+      secondCountAccumulatorSignal.map { _.count * 1.0 }
     val minuteAverageSignal: ISignal[IO, Double] =
-      minuteCountAccumulatorSignal.map { _.average }
+      minuteCountAccumulatorSignal.map { _.count * 1.0 / minute }
     val hourAverageSignal: ISignal[IO, Double] =
-      hourCountAccumulatorSignal.map { _.average }
+      hourCountAccumulatorSignal.map { _.average * 1.0 / hour }
 
     // for the timestamp key, increment the count value
     private def incrementTime(timestamp: LocalDateTime): IO[Unit] =
@@ -163,7 +179,11 @@ object TwitterAverages {
     // calculates hourly averages
     private lazy val calculateHourlyAverage: Stream[IO, Unit] = 
       hourSumSignal.discrete.flatMap { case (hourSum, hourCount) =>
-        Stream.eval(hourCountAccumulatorSignal.modify { _.add(hourSum, hourCount) }).drain
+        Stream.eval(hourCountAccumulatorSignal.modify { countAcc =>
+          val _countAcc = countAcc.add(hourSum, hourCount)
+          println((_countAcc.count * 1.0 / hour) + "   " + _countAcc.count + "  hourSum: " + hourSum + "  hourCount: " + hourCount)
+          _countAcc
+        }).drain
       }
 
     // calculates minute averages
@@ -175,11 +195,7 @@ object TwitterAverages {
     // calculates second averages
     private lazy val calculateSecondAverage: Stream[IO, Unit] = 
       secondSumSignal.discrete.flatMap { case (secondSum, secondCount) =>
-        Stream.eval(secondCountAccumulatorSignal.modify { countAcc =>
-          val _countAcc = countAcc.add(secondSum, secondCount)
-          println(_countAcc.average)
-          _countAcc
-        }).drain
+        Stream.eval(secondCountAccumulatorSignal.modify { _.add(secondSum, secondCount) }).drain
       }
     
     
@@ -226,14 +242,14 @@ object TwitterAverages {
     Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
 
   // http://www.scala-lang.org/api/current/scala/collection/immutable/HashSet$.html
-  private def createCountAccumulatorSignal: IO[CountAccumulatorSignal] =
-    Signal.apply(CountAccumulator(0, 0))
+  // private def createCountAccumulatorSignal: IO[CountAccumulatorSignal] =
+  //   Signal.apply(CountAccumulator(0, 0))
 
   private def makeAverage(_name: String, _predicate: Tweet => Boolean): IO[TwitterAverage] = for {
     _timeTableSignal <- createTimeTableSignal
-    _secondCountAccumulatorSignal <- createCountAccumulatorSignal
-    _minuteCountAccumulatorSignal <- createCountAccumulatorSignal
-    _hourCountAccumulatorSignal <- createCountAccumulatorSignal
+    _secondCountAccumulatorSignal <- Signal.apply(SecondCountAccumulator())(IO.ioEffect, global)
+    _minuteCountAccumulatorSignal <- Signal.apply(MinuteCountAccumulator())(IO.ioEffect, global)
+    _hourCountAccumulatorSignal <- Signal.apply(HourCountAccumulator())(IO.ioEffect, global)
   } yield {
     new TwitterAverage {
       val name = _name
