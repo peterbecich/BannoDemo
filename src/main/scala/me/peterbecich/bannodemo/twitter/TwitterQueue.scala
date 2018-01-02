@@ -11,7 +11,9 @@ import com.danielasfregola.twitter4s.entities.streaming.StreamingMessage
 import cats._
 import cats.syntax.all._
 import cats.effect.{IO, Sync}
-import fs2.{io, text, Stream, Chunk, Segment}
+// import fs2.{io, text, Stream, Chunk, Segment}
+// import fs2.async.mutable.Queue
+import fs2._
 import fs2.async.mutable.Queue
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -57,12 +59,28 @@ object TwitterQueue {
       }
   }
 
+  import com.danielasfregola.twitter4s.entities.streaming.{StreamingMessage, CommonStreamingMessage, UserStreamingMessage, SiteStreamingMessage}
+  import com.danielasfregola.twitter4s.entities.Tweet
+
+  def streamingMessageEnqueue(tweetSink: Sink[IO, Tweet]): Sink[IO, StreamingMessage] =
+    (messageStream: Stream[IO, StreamingMessage]) => messageStream.flatMap {
+      case (csm: CommonStreamingMessage) => csm match {
+        case (tweet: Tweet) => Stream.emit(tweet).observe(tweetSink).drain
+        case _ => Stream.empty
+      }
+      case (_: SiteStreamingMessage) => Stream.empty
+      case (_: UserStreamingMessage) => Stream.empty
+        
+    }
+  
+
   // https://oss.sonatype.org/service/local/repositories/releases/archive/co/fs2/fs2-core_2.12/0.10.0-M8/fs2-core_2.12-0.10.0-M8-javadoc.jar/!/fs2/async/mutable/Queue.html
   // https://github.com/functional-streams-for-scala/fs2/blob/series/0.10/docs/migration-guide-0.10.md#performance
   
   val createTwitterStream: IO[Stream[IO, Tweet]] = for {
     twitterQueue <- createTwitterQueue
-    val foo = streamingClient.sampleStatuses()(unsafeTweetEnqueue(twitterQueue))
+    //val foo = streamingClient.sampleStatuses()(unsafeTweetEnqueue(twitterQueue))
+    val foo = streamingClient.FS2.sampleStatusesStream()(streamingMessageEnqueue(twitterQueue.enqueue))
     val queueSizeStream: Stream[IO, Unit] = twitterQueue.size.discrete.flatMap { queueSize =>
       if(queueSize > 0 && queueSize % 5 == 0)
         Stream.eval(IO(println("queue size: "+queueSize)))
