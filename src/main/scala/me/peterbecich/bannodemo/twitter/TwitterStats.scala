@@ -8,6 +8,7 @@ import io.circe.syntax._
 import io.circe.literal._
 import io.circe.generic.semiauto._
 import org.http4s.circe._
+import me.peterbecich.bannodemo.JSON.Common._
 
 import fs2._
 import scala.concurrent.duration._
@@ -47,31 +48,21 @@ object TwitterStats {
   import cats._
   import cats.implicits._
 
-  val collectStats: IO[Unit] = 
+  val collectStats: IO[Stream[IO, TwitterAverages.JSON.AveragesPayload]] = 
     IO(println("acquire Twitter stream")).flatMap { _ =>
       TwitterQueue.createTwitterStream.flatMap { twitterStream =>
         Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe).flatMap { countPipe =>
-          TwitterAverages.makeConcatenatedAveragePipe.flatMap { averagePipe =>
+          TwitterAverages.makeTwitterAverages.flatMap { case (averagePipe, averagesPayloadStream) =>
             twitterStream
               .through(countPipe)
               .through(averagePipe)
               .drain
               .run
+              .map { _ => averagesPayloadStream }
           }
         }
       }
     }
-
-  // for {
-  //   twitterStream <- TwitterQueue.createTwitterStream
-  //   averagePipe <- TwitterAverages.makeConcatenatedAveragePipe
-  //   countPipe <- Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe)
-  // } yield {
-  //   twitterStream
-  //     .through(averagePipe)
-  //     .through(countPipe)
-  //     .drain.run
-  // }
 
 
 
@@ -81,9 +72,6 @@ object TwitterStats {
     LocalDateTime.ofInstant(date.toInstant(), serverStart.getZone())
 
   def getTweetTime(tweet: Tweet): LocalDateTime = dateToLocalDateTime(tweet.created_at)
-
-  implicit val ZonedDateTimeEncoder: Encoder[ZonedDateTime] =
-    Encoder.instance { zonedDateTime => json"""${zonedDateTime.toString}""" }
 
   /*
    http://circe.github.io/circe/api/io/circe/numbers/BiggerDecimal.html
