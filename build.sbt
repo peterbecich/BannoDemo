@@ -62,7 +62,10 @@ lazy val root = (project in file("."))
       "de.heikoseeberger" %% "akka-http-circe" % "1.18.0",
       "de.heikoseeberger" %% "akka-http-json4s" % "1.18.0",
       "org.json4s" %% "json4s-native" % Json4s,
-      "org.json4s" %% "json4s-ext" % Json4s
+      "org.json4s" %% "json4s-ext" % Json4s,
+      "org.scalactic" %% "scalactic" % "3.0.4",
+      "org.scalatest" %% "scalatest" % "3.0.4" % "test",
+      "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"
     )
   )
 
