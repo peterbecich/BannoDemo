@@ -53,14 +53,14 @@ object TwitterStats {
       TwitterQueue.createTwitterStream.flatMap { twitterStream =>
         Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe).flatMap { countPipe =>
           TwitterAverages.makeTwitterAverages.flatMap { case (averagePipe, averagesPayloadStream) =>
-            val stats: IO[Unit] =
-              twitterStream
-                .through(countPipe)
-                .through(averagePipe)
-                .drain
-                .run
-
-            stats.runAsync { case _ => IO(()) } *> IO(averagesPayloadStream)
+            twitterStream
+              .through(countPipe)
+              .through(averagePipe)
+              .drain
+              .run
+              .runAsync { case _ => IO(()) }.flatMap { _ =>
+                IO(averagesPayloadStream)
+              }
           }
         }
       }
@@ -110,3 +110,32 @@ object TwitterStats {
     getTwitterStats.map(_.asJson)
 
 }
+
+
+object TwitterStatsExample {
+  import io.circe._
+
+  import TwitterStats._
+
+  
+  val pipeline: IO[Unit] = collectStats.flatMap { stats =>
+    stats
+      .take(1000)
+      .map(_.toString)
+      .through(fs2.text.utf8Encode)
+      .observe(fs2.io.stdout)
+      .drain
+      .run
+  }
+
+  
+
+  def main(args: Array[String]): Unit = {
+    println("twitter stats example")
+
+    pipeline.unsafeRunSync()
+
+  }
+
+}
+

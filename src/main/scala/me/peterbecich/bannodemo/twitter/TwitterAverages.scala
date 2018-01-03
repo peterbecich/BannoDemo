@@ -71,15 +71,17 @@ object TwitterAverages {
       Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid)
     }
 
-  def averagesPayloadStream(averages: List[TwitterAverage]): Stream[IO, io.circe.Json] = {
-    val averagePayloads: List[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
-      averages.map(_.averagePayloadStream)
+  def averagesPayloadStream(averages: List[TwitterAverage]): Stream[IO, io.circe.Json] =
+    fs2.Scheduler[IO](2).flatMap { scheduler => 
+      lazy val averagePayloads: List[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
+        averages.map(_.averagePayloadStream)
 
-    val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
-      Traverse[List].sequence(averagePayloads)
+      lazy val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
+        Traverse[List].sequence(averagePayloads)
 
-    streamListPayload.map(JSON.makeAveragesPayloadJson)
-  }
+      scheduler.delay(streamListPayload.map(JSON.makeAveragesPayloadJson), 20.second)
+
+    }
 
   val makeTwitterAverages: IO[(Pipe[IO, Tweet, Tweet], Stream[IO, io.circe.Json])] =
     makeAverages.flatMap { averages =>

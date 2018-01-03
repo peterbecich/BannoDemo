@@ -55,7 +55,7 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
       case GET -> Root / "stats" =>
         Ok(TwitterStats.getTwitterStatsJSON)
       case GET -> Root / "averages" =>
-        Ok(statsPayload)
+        Ok(statsPayload.take(1))
       case GET -> Root / "bannoDemo" =>
         StaticFile.fromFile[IO](new File("/srv/static/index.html")).getOrElseF(NotFound())
       case GET -> Root / filename =>
