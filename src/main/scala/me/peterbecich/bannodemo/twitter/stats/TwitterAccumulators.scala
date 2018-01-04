@@ -18,38 +18,6 @@ import fs2._
 
 object TwitterAccumulators {
 
-  abstract class TwitterAccumulator {
-
-    val name: String
-    val predicate: Tweet => Boolean
-
-    private val count: AtomicLong = new AtomicLong(0);
-
-    def getCount: IO[Long] = IO(count.get())
-    def describe: IO[String] = getCount.map(i => name + ": " + i)
-    def increment: IO[Unit] = IO(count.incrementAndGet()).flatMap { n =>
-      if (n % 1000 != 0)
-        IO (())
-      else
-        describe.flatMap { s => IO ( println(s) ) }
-    }
-
-    def getPercentage: IO[Double] = for {
-      tweetCount <- TweetCount.getCount
-      accCount <- getCount
-    } yield accCount.toDouble / tweetCount
-
-    // TODO do this in IO
-    // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
-
-    // TODO make val?
-    def accumulatorPipe: Pipe[IO, Tweet, Tweet] =
-      (input: Stream[IO, Tweet]) => input.flatMap { tweet =>
-        if (predicate(tweet)) {
-          Stream.eval(increment).flatMap { (_: Unit) => Stream.emit(tweet) }
-        } else Stream.emit(tweet)
-      }
-  }
 
   case object TweetCount extends TwitterAccumulator {
     val predicate: Tweet => Boolean = _ => true
@@ -87,11 +55,6 @@ object TwitterAccumulators {
 
   def passThru[A]: Pipe[IO, A, A] = stream => stream
 
-  // all pipes concatenated together
-  // https://typelevel.org/cats/api/cats/Foldable.html#foldM[G[_],A,B](fa:F[A],z:B)(f:(B,A)=%3EG[B])(implicitG:cats.Monad[G]):G[B]
-  // val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
-  //   Foldable[List].foldM(accumulators, passThru)(
-
   def pipeConcatenationMonoid[A] = new Monoid[Pipe[IO, A, A]] {
     def combine(pipe1: Pipe[IO, A, A], pipe2: Pipe[IO, A, A]): Pipe[IO, A, A] =
       pipe1.andThen(pipe2)
@@ -100,9 +63,6 @@ object TwitterAccumulators {
 
   val concatenatedAccumulatorPipe: Pipe[IO, Tweet, Tweet] =
     Foldable[List].foldMap(accumulators)(_.accumulatorPipe)(pipeConcatenationMonoid[Tweet])
-
-  // val concatenatedAccumulatorPipes: Pipe[IO, Tweet, Tweet] =
-  //   TweetCount.accumulatorPipe.andThen(EmojiTweetCount.accumulatorPipe)
 
 }
 
