@@ -1,6 +1,7 @@
 package me.peterbecich.bannodemo.twitter
 
 import org.scalacheck._
+import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 // import org.scalacheck.Properties
 // import org.scalacheck.Prop.forAll
@@ -33,8 +34,20 @@ object TweetGen {
     _b <- arbitrary[Int]
   } yield Foo(_a, _b)
 
+  //val testBegin: Date = new Date()
+  val testBegin: Long = System.currentTimeMillis()
+  val testBeginDate: Date = new Date(testBegin)
+
+  // https://stackoverflow.com/a/1655538/1007926
+
+  implicit lazy val latterDateGen: Gen[Date] =
+    arbitrary[Int]
+      .map { millis => (millis / 2).abs }
+      .map { millis => new Date(testBegin + 10000 + millis) }
+
   val tweetGen: Gen[Tweet] = for {
-    _created_at <- arbitrary[Date]
+    // _created_at <- arbitrary[Date]
+    _created_at <- latterDateGen
     _favorite_count <- arbitrary[Int]
     _favorited <- arbitrary[Boolean]
     _id <- arbitrary[Long]

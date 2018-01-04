@@ -10,6 +10,7 @@ import org.scalatest.prop._
 import org.scalatest.Matchers._
 
 import java.util.Date
+import java.time.LocalDateTime
 
 import scala.collection.Map
 
@@ -32,6 +33,17 @@ class TweetSpec extends PropSpec with PropertyChecks with Matchers {
     forAll { (tweet: Tweet) =>
       // println("tweet: "+tweet)
       tweet.text.length() should be <= 280
+    }
+  }
+
+  property("generated Tweet timestamps later than time of beginning of test") {
+    // val now = LocalDateTime.now()
+    // println("test begins: "+TweetGen.testBeginDate)
+    Thread.sleep(1000)
+    forAll { (tweet: Tweet) =>
+      // println("test begins: "+TweetGen.testBeginDate)
+      // println("tweet time: "+tweet.created_at.toString())
+      tweet.created_at.after(TweetGen.testBeginDate) should be (true)
     }
   }
 

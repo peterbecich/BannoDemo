@@ -329,7 +329,7 @@ abstract class TwitterAverage {
     (s: Stream[IO, Tweet]) =>
   incrementTimePipe(s)
     .through(filterTimeThresholdPipe)
-    // .concurrently(printRecentCount)
+    .concurrently(printRecentCount)
     .concurrently(calculateHourlyAverage)
     .concurrently(calculateMinuteAverage)
     .concurrently(calculateSecondAverage)
