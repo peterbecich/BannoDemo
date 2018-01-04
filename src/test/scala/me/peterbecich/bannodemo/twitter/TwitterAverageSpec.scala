@@ -166,7 +166,7 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
     }
   }
 
-  property("TwitterAverage produces more than one AveragePayload") {
+  property("TwitterAverage produces more than one AveragePayload???") {
     forAll { (tweets: Stream[IO, Tweet]) =>
       val makeTweetAverage: IO[TwitterAverage] =
         TwitterAverage.makeAverage("TweetAverage", (_) => true)
@@ -181,11 +181,41 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
 
       val getPayloadCount: IO[Int] =
         getPayloadStream.flatMap { payloadStream =>
-          payloadStream.take(1).runFold(0){ (s, _) => s + 1 }
+          payloadStream.map { payload =>
+            println(payload); 1 }.take(5).runFold(0){ (s, _) => s + 1 }
         }
 
       val payloadCount = getPayloadCount.unsafeRunSync()
 
+      println("Twitter average should produce more than one AveragePayload")
+      println("average payload count: "+payloadCount)
+
+      payloadCount should be > 0
+    }
+  }
+
+  property("TwitterAverage produces more than one AveragePayload, with slow Tweet stream???") {
+    forAll(slowTwitterStreamGen) { (tweets: Stream[IO, Tweet]) =>
+      val makeTweetAverage: IO[TwitterAverage] =
+        TwitterAverage.makeAverage("TweetAverage", (_) => true)
+
+      def loadTweets(ave: TwitterAverage): Stream[IO, Unit] =
+        tweets.through(ave.averagePipe).drain
+
+      val getPayloadStream: IO[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
+        makeTweetAverage.map { ave =>
+          slowStream(ave.averagePayloadStream.concurrently(loadTweets(ave)))
+        }
+
+      val getPayloadCount: IO[Int] =
+        getPayloadStream.flatMap { payloadStream =>
+          payloadStream.map { payload =>
+            println(payload); 1 }.take(5).runFold(0){ (s, _) => s + 1 }
+        }
+
+      val payloadCount = getPayloadCount.unsafeRunSync()
+
+      println("Twitter average should produce more than one AveragePayload; slow Tweet stream")
       println("average payload count: "+payloadCount)
 
       payloadCount should be > 0

@@ -182,11 +182,11 @@ abstract class TwitterAverage {
 
   lazy val averagePayloadStream: Stream[IO, JSON.AveragePayload] = {
     val secondStream: Stream[IO, SecondCountAccumulator] =
-      secondCountAccumulatorSignal.discrete
+      secondCountAccumulatorSignal.continuous
     val minuteStream: Stream[IO, MinuteCountAccumulator] =
-      minuteCountAccumulatorSignal.discrete
+      minuteCountAccumulatorSignal.continuous
     val hourStream: Stream[IO, HourCountAccumulator] =
-      hourCountAccumulatorSignal.discrete
+      hourCountAccumulatorSignal.continuous
     val zippedStreams: Stream[IO, ((SecondCountAccumulator, MinuteCountAccumulator), HourCountAccumulator)] =
       secondStream.zip(minuteStream).zip(hourStream)
 
@@ -194,7 +194,7 @@ abstract class TwitterAverage {
       zippedStreams.map { case ((second, minute), hour) => (second, minute, hour) }
 
     val payloadStream: Stream[IO, JSON.AveragePayload] =
-      _zippedStreams.map{ case (second, minute, hour) =>
+      _zippedStreams.map { case (second, minute, hour) =>
         JSON.makeAveragePayload(name, second, minute, hour)
       }
 
