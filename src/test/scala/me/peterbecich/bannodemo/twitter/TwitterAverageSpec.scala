@@ -28,7 +28,7 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
   import TwitterQueueGen._
 
   implicit override val generatorDrivenConfig =
-    PropertyCheckConfig(minSize = 100, maxSize = 500)
+    PropertyCheckConfig(minSize = 100, maxSize = 5000)
 
   property("dummy test") {
     forAll { (tweets: Stream[IO, Tweet]) =>
@@ -96,7 +96,7 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
         }
 
       val triemap = getTriemap.unsafeRunSync
-      // println("time table size: "+triemap.size)
+      println("time table size: "+triemap.size)
       triemap.size should be > 0
 
     }
@@ -119,7 +119,27 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
       triemap.size should be <= 10
 
     }
-  }  
+  }
+
+  property("Count of Tweets in Time Table is greater than 0") {
+    forAll { (tweets: Stream[IO, Tweet]) =>
+      val makeTweetAverage: IO[TwitterAverage] =
+        TwitterAverage.makeAverage("TweetAverage", (_) => true)
+
+      val getHour: IO[(Long, Long)] =
+        makeTweetAverage.flatMap { tweetAverage =>
+          tweets.through(tweetAverage.averagePipe).drain.run.flatMap { _ =>
+            tweetAverage.hourSumSignal.get
+          }
+        }
+
+      val (sum, count) = getHour.unsafeRunSync
+      println("sum: "+sum+" count: "+count)
+      sum.toInt should be > 0
+
+    }
+  }
+  
   
   
 

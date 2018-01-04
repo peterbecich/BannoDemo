@@ -288,7 +288,7 @@ abstract class TwitterAverage {
     }
 
   // sum of tweets in the past hour, from this second
-  private lazy val hourSumSignal: ISignal[IO, (Long, Long)] =
+  lazy val hourSumSignal: ISignal[IO, (Long, Long)] =
     priorHourTimeTable.map { timeTable =>
       (timeTable.values.sum, timeTable.size)
     }
