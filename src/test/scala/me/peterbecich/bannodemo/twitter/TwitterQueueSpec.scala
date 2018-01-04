@@ -26,6 +26,10 @@ import cats.effect.{IO, Sync}
 class TwitterQueueSpec extends PropSpec with PropertyChecks with Matchers {
   import TwitterQueueGen._
 
+  implicit override val generatorDrivenConfig =
+    PropertyCheckConfig(minSize = 100, maxSize = 500)
+  
+
   val tweetPrintSink: Sink[IO, Tweet] =
     (s: Stream[IO, Tweet]) => s
       .map(_.id_str)
@@ -43,6 +47,19 @@ class TwitterQueueSpec extends PropSpec with PropertyChecks with Matchers {
       b should equal (Some(true))
     }
   }
+
+  property("Tweet Stream holds more than 0 Tweets") {
+    forAll { (stream: Stream[IO, Tweet]) =>
+      val getCount: IO[Int] = stream
+        .map(_ => 1)
+        .runFold(0){ (s, _) => s + 1 }
+
+      val count = getCount.unsafeRunSync()
+      // println("count: "+count)
+      count should be > 0
+    }
+  }
+
 
 
   // property("Twitter Queue holds Tweets pushed into it") {

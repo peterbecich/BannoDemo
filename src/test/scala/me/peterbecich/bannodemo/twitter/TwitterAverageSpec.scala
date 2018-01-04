@@ -27,6 +27,9 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
   import TweetGen._
   import TwitterQueueGen._
 
+  implicit override val generatorDrivenConfig =
+    PropertyCheckConfig(minSize = 100, maxSize = 500)
+
   property("dummy test") {
     forAll { (tweets: Stream[IO, Tweet]) =>
       val makeTweetAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("TweetAverage", (_) => true)
@@ -42,6 +45,25 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
 
     }
   }
+
+  property("Tweets pass through averaging pipeline") {
+    forAll { (tweets: Stream[IO, Tweet]) =>
+      val makeTweetAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("TweetAverage", (_) => true)
+
+      val getCount: IO[Int] =
+        makeTweetAverage.flatMap { tweetAverage =>
+          tweets.through(tweetAverage.averagePipe).map(_ => 1).runFold(0) { (s, _) => s+1 }
+        }
+
+      val count = getCount.unsafeRunSync()
+      // println("count: "+count)
+      count should be > 0
+
+    }
+  }
+
+
+
 }
 
 

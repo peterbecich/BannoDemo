@@ -27,7 +27,9 @@ object TwitterQueueGen {
   import cats.effect.{IO, Sync}
 
   val twitterStreamGen: Gen[Stream[IO, Tweet]] = for {
-    seqTweets <- arbitrary[Seq[Tweet]]
+    // seqTweets <- arbitrary[Seq[Tweet]]
+    n <- Gen.choose(64, 1024)
+    seqTweets <- Gen.listOfN(n, arbitrary[Tweet])
   } yield Stream.emits(seqTweets)
 
   implicit val twitterStreamArbitrary: Arbitrary[Stream[IO, Tweet]] =
