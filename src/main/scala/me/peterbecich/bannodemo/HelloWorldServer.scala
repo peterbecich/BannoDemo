@@ -38,7 +38,9 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
     allowCredentials = false,
     maxAge = 1.day.toSeconds
   )
-  def service(statsPayload: Stream[IO, io.circe.Json]) =
+
+  // def service(stats: TwitterStats) =
+  val service =
     HttpService[IO] {
       case GET -> Root / "hello" / name =>
         Ok(Json.obj("message" -> Json.fromString(s"Hello, ${name}")))
@@ -54,22 +56,25 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
         Ok(TwitterAccumulators.HashtagTweetCount.getCount.toString)
       case GET -> Root / "stats" =>
         Ok(TwitterStats.getTwitterStatsJSON)
-      case GET -> Root / "averages" =>
-        Ok(statsPayload.take(1))
+      // case GET -> Root / "averages" =>
+      //   Ok(statsPayload.take(1))
       case GET -> Root / "bannoDemo" =>
         StaticFile.fromFile[IO](new File("/srv/static/index.html")).getOrElseF(NotFound())
       case GET -> Root / filename =>
         StaticFile.fromFile[IO](new File("/srv/static/"++filename)).getOrElseF(NotFound())
     }
 
-  def corsOriginService(statsPayload: Stream[IO, io.circe.Json]) =
-    CORS(service(statsPayload), originConfig)
+  // def corsOriginService(stats: TwitterStats) =
+  //   CORS(service(stats), originConfig)
 
+  val corsOriginService =
+    CORS(service, originConfig)
+  
   def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, ExitCode] =
-    Stream.eval(TwitterStats.collectStats).flatMap { statsPayloadStream =>
+    Stream.eval(TwitterStats.collectStats).flatMap { stats =>
       BlazeBuilder[IO]
         .bindHttp(8080, "0.0.0.0")
-        .mountService(corsOriginService(statsPayloadStream), "/")
+        .mountService(corsOriginService, "/")
         .serve
     }
   

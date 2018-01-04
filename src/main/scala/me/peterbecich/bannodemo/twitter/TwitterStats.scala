@@ -48,19 +48,19 @@ object TwitterStats {
   import cats._
   import cats.implicits._
 
-  val collectStats: IO[Stream[IO, io.circe.Json]] = 
+  val collectStats: IO[Unit] = 
     IO(println("acquire Twitter stream")).flatMap { _ =>
       TwitterQueue.createTwitterStream.flatMap { twitterStream =>
         Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe).flatMap { countPipe =>
-          TwitterAverages.makeTwitterAverages.flatMap { case (averagePipe, averagesPayloadStream) =>
+          TwitterAverages.makeTwitterAverages.flatMap { averagePipe =>
             twitterStream
               .through(countPipe)
               .through(averagePipe)
               .drain
               .run
-              .runAsync { case _ => IO(()) }.flatMap { _ =>
-                IO(averagesPayloadStream)
-              }
+              // .runAsync { case _ => IO(()) }.flatMap { _ =>
+              //   IO(averagesPayloadStream)
+              // }
           }
         }
       }
@@ -118,24 +118,24 @@ object TwitterStatsExample {
   import TwitterStats._
 
   
-  val pipeline: IO[Unit] = collectStats.flatMap { stats =>
-    stats
-      .take(1000)
-      .map(_.toString)
-      .through(fs2.text.utf8Encode)
-      .observe(fs2.io.stdout)
-      .drain
-      .run
-  }
+  // val pipeline: IO[Unit] = collectStats.flatMap { stats =>
+  //   stats
+  //     .take(1000)
+  //     .map(_.toString)
+  //     .through(fs2.text.utf8Encode)
+  //     .observe(fs2.io.stdout)
+  //     .drain
+  //     .run
+  // }
 
   
 
-  def main(args: Array[String]): Unit = {
-    println("twitter stats example")
+  // def main(args: Array[String]): Unit = {
+  //   println("twitter stats example")
 
-    pipeline.unsafeRunSync()
+  //   pipeline.unsafeRunSync()
 
-  }
+  // }
 
 }
 

@@ -190,29 +190,29 @@ abstract class TwitterAverage {
   val hourCountAccumulatorSignal: Signal[IO, HourCountAccumulator]
 
   lazy val averagePayloadStream: Stream[IO, JSON.AveragePayload] = {
-    val secondStream: Stream[IO, SecondCountAccumulator] =
-      secondCountAccumulatorSignal.continuous
-    val minuteStream: Stream[IO, MinuteCountAccumulator] =
-      minuteCountAccumulatorSignal.continuous
-    val hourStream: Stream[IO, HourCountAccumulator] =
-      hourCountAccumulatorSignal.continuous
-
-
     // val secondStream: Stream[IO, SecondCountAccumulator] =
-    //   Stream.repeatEval(secondCountAccumulatorSignal.get)
+    //   secondCountAccumulatorSignal.continuous
     // val minuteStream: Stream[IO, MinuteCountAccumulator] =
-    //   Stream.repeatEval(minuteCountAccumulatorSignal.get)
+    //   minuteCountAccumulatorSignal.continuous
     // val hourStream: Stream[IO, HourCountAccumulator] =
-    //   Stream.repeatEval(hourCountAccumulatorSignal.get)
+    //   hourCountAccumulatorSignal.continuous
 
 
-    val zippedStreams: Stream[IO, ((SecondCountAccumulator, MinuteCountAccumulator), HourCountAccumulator)] =
+    def secondStream: Stream[IO, SecondCountAccumulator] =
+      Stream.eval(secondCountAccumulatorSignal.get)
+    def minuteStream: Stream[IO, MinuteCountAccumulator] =
+      Stream.eval(minuteCountAccumulatorSignal.get)
+    def hourStream: Stream[IO, HourCountAccumulator] =
+      Stream.eval(hourCountAccumulatorSignal.get)
+
+
+    lazy val zippedStreams: Stream[IO, ((SecondCountAccumulator, MinuteCountAccumulator), HourCountAccumulator)] =
       secondStream.zip(minuteStream).zip(hourStream)
 
-    val _zippedStreams: Stream[IO, (SecondCountAccumulator, MinuteCountAccumulator, HourCountAccumulator)] =
+    lazy val _zippedStreams: Stream[IO, (SecondCountAccumulator, MinuteCountAccumulator, HourCountAccumulator)] =
       zippedStreams.map { case ((second, minute), hour) => (second, minute, hour) }
 
-    val payloadStream: Stream[IO, JSON.AveragePayload] =
+    lazy val payloadStream: Stream[IO, JSON.AveragePayload] =
       _zippedStreams.map { case (second, minute, hour) =>
         JSON.makeAveragePayload(name, second, minute, hour)
       }

@@ -83,12 +83,9 @@ object TwitterAverages {
 
     }
 
-  val makeTwitterAverages: IO[(Pipe[IO, Tweet, Tweet], Stream[IO, io.circe.Json])] =
+  val makeTwitterAverages: IO[Pipe[IO, Tweet, Tweet]] =
     makeAverages.flatMap { averages =>
-      makeConcatenatedAveragePipe(averages).map { pipe =>
-        val averagesPayload = averagesPayloadStream(averages)
-        (pipe, averagesPayload)
-      }
+      makeConcatenatedAveragePipe(averages)
     }
 
 }
@@ -101,7 +98,7 @@ object TwitterAveragesExample {
   val averageTwitter2: IO[Unit] =
     IO(println("acquire Twitter stream")).flatMap { _ =>
       TwitterQueue.createTwitterStream.flatMap { twitterStream =>
-        TwitterAverages.makeTwitterAverages.flatMap { case (averagePipe, _) =>
+        TwitterAverages.makeTwitterAverages.flatMap { case averagePipe =>
           IO(println("acquired Twitter stream and average pipe")).flatMap { _ =>
             twitterStream
               .through(averagePipe)
