@@ -1,4 +1,4 @@
-package me.peterbecich.bannodemo
+package me.peterbecich.bannodemo.examples
 
 import collection.mutable.Stack
 import org.scalatest._

@@ -1,4 +1,4 @@
-package me.peterbecich.bannodemo
+package me.peterbecich.bannodemo.examples
 
 import cats.effect.IO
 import org.http4s._
