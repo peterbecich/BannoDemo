@@ -19,8 +19,6 @@ import java.time.ZonedDateTime
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import me.peterbecich.bannodemo.twitter.TwitterAccumulators
-import me.peterbecich.bannodemo.twitter.TwitterAverages
 import me.peterbecich.bannodemo.twitter.TwitterStats
 import me.peterbecich.bannodemo.twitter.TwitterStats._
 
@@ -44,16 +42,16 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
     HttpService[IO] {
       case GET -> Root / "hello" / name =>
         Ok(Json.obj("message" -> Json.fromString(s"Hello, ${name}")))
-      case GET -> Root / "tweetCount" =>
-        Ok(TwitterAccumulators.TweetCount.getCount.toString)
-      case GET -> Root / "emojiTweetCount" =>
-        Ok(TwitterAccumulators.EmojiTweetCount.getCount.toString)
-      case GET -> Root / "urlTweetCount" =>
-        Ok(TwitterAccumulators.URLTweetCount.getCount.toString)
-      case GET -> Root / "picTweetCount" =>
-        Ok(TwitterAccumulators.PicTweetCount.getCount.toString)
-      case GET -> Root / "hashtagTweetCount" =>
-        Ok(TwitterAccumulators.HashtagTweetCount.getCount.toString)
+      // case GET -> Root / "tweetCount" =>
+      //   Ok(TwitterAccumulators.TweetCount.getCount.toString)
+      // case GET -> Root / "emojiTweetCount" =>
+      //   Ok(TwitterAccumulators.EmojiTweetCount.getCount.toString)
+      // case GET -> Root / "urlTweetCount" =>
+      //   Ok(TwitterAccumulators.URLTweetCount.getCount.toString)
+      // case GET -> Root / "picTweetCount" =>
+      //   Ok(TwitterAccumulators.PicTweetCount.getCount.toString)
+      // case GET -> Root / "hashtagTweetCount" =>
+      //   Ok(TwitterAccumulators.HashtagTweetCount.getCount.toString)
       // case GET -> Root / "stats" =>
       //   Ok(TwitterStats.getTwitterStatsJSON)
       // case GET -> Root / "averages" =>

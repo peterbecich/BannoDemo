@@ -13,7 +13,7 @@ import scala.collection.Map
 
 import com.danielasfregola.twitter4s.entities.Tweet
 
-import me.peterbecich.bannodemo.twitter.TwitterQueue._
+import me.peterbecich.bannodemo.twitter.TwitterSource._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -23,8 +23,8 @@ import fs2.async.mutable.Queue
 import cats._
 import cats.effect.{IO, Sync}
 
-class TwitterQueueSpec extends PropSpec with PropertyChecks with Matchers {
-  import TwitterQueueGen._
+class TwitterSourceSpec extends PropSpec with PropertyChecks with Matchers {
+  import TwitterSourceGen._
 
   implicit override val generatorDrivenConfig =
     PropertyCheckConfig(minSize = 100, maxSize = 500)
@@ -62,7 +62,7 @@ class TwitterQueueSpec extends PropSpec with PropertyChecks with Matchers {
 
 
 
-  // property("Twitter Queue holds Tweets pushed into it") {
+  // property("Twitter Source holds Tweets pushed into it") {
   //   forAll { (stream: Stream[IO, Tweet]) =>
   //     val fullQueue: IO[Int] =
   //       createTwitterQueue.flatMap { twitterQueue =>

@@ -1,4 +1,4 @@
-package me.peterbecich.bannodemo.twitter
+package me.peterbecich.bannodemo.twitter.stats
 
 import java.util.concurrent.atomic.AtomicLong
 

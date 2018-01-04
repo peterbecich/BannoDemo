@@ -1,4 +1,4 @@
-package me.peterbecich.bannodemo.twitter
+package me.peterbecich.bannodemo.twitter.stats
 
 import cats._
 import cats.implicits._
@@ -40,7 +40,7 @@ object TwitterAverages {
     import scala.collection.immutable.HashMap
 
     import me.peterbecich.bannodemo.JSON.Common._
-    import me.peterbecich.bannodemo.twitter.TwitterAverage.JSON._
+    import me.peterbecich.bannodemo.twitter.stats.TwitterAverage.JSON._
 
     type AveragesPayload = Map[String, AveragePayload]
 
@@ -90,29 +90,29 @@ object TwitterAverages {
 
 }
 
-object TwitterAveragesExample {
-  import fs2.{io, text}
+// object TwitterAveragesExample {
+//   import fs2.{io, text}
 
-  import TwitterAverages._
+//   import TwitterAverages._
 
-  val averageTwitter2: IO[Unit] =
-    IO(println("acquire Twitter stream")).flatMap { _ =>
-      TwitterQueue.createTwitterStream.flatMap { twitterStream =>
-        TwitterAverages.makeTwitterAverages.flatMap { case averagePipe =>
-          IO(println("acquired Twitter stream and average pipe")).flatMap { _ =>
-            twitterStream
-              .through(averagePipe)
-              .drain
-              .run
-          }
-        }
-      }
-    }
+//   val averageTwitter2: IO[Unit] =
+//     IO(println("acquire Twitter stream")).flatMap { _ =>
+//       TwitterQueue.createTwitterStream.flatMap { twitterStream =>
+//         TwitterAverages.makeTwitterAverages.flatMap { case averagePipe =>
+//           IO(println("acquired Twitter stream and average pipe")).flatMap { _ =>
+//             twitterStream
+//               .through(averagePipe)
+//               .drain
+//               .run
+//           }
+//         }
+//       }
+//     }
 
-  def main(args: Array[String]): Unit = {
-    println("twitter averages example")
+//   def main(args: Array[String]): Unit = {
+//     println("twitter averages example")
 
-    averageTwitter2.unsafeRunSync()
-  }
+//     averageTwitter2.unsafeRunSync()
+//   }
  
-}
+// }

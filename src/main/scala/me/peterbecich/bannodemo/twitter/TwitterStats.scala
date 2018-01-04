@@ -18,7 +18,9 @@ import java.time.{LocalDateTime, ZonedDateTime}
 
 import com.danielasfregola.twitter4s.entities.Tweet
 
-import TwitterAccumulators._
+import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators
+import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators._
+import me.peterbecich.bannodemo.twitter.stats.TwitterAverages
 
 import me.peterbecich.bannodemo.HelloWorldServer.serverStart
 
@@ -50,7 +52,7 @@ object TwitterStats {
 
   val collectStats: IO[Unit] = 
     IO(println("acquire Twitter stream")).flatMap { _ =>
-      TwitterQueue.createTwitterStream.flatMap { twitterStream =>
+      TwitterSource.createTwitterStream.flatMap { twitterStream =>
         Applicative[IO].pure(TwitterAccumulators.concatenatedAccumulatorPipe).flatMap { countPipe =>
           TwitterAverages.makeTwitterAverages.flatMap { averagePipe =>
             twitterStream

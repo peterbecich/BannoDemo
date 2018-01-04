@@ -1,4 +1,4 @@
-package me.peterbecich.bannodemo.twitter
+package me.peterbecich.bannodemo.twitter.examples
 
 import java.util.Scanner;
 import java.io.IOException;

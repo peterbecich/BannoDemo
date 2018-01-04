@@ -1,31 +1,25 @@
-package me.peterbecich.bannodemo.twitter
-
-import org.scalacheck._
-import org.scalacheck.Arbitrary._
-
-import org.scalatest._
-import org.scalatest.prop._
-import org.scalatest.Matchers._
-
-import java.util.Date
-
-import scala.collection.Map
-
-import com.danielasfregola.twitter4s.entities.Tweet
-
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import fs2._
-import fs2.async.mutable.Queue
+package me.peterbecich.bannodemo.twitter.stats
 
 import cats._
 import cats.effect.{IO, Sync}
+import com.danielasfregola.twitter4s.entities.Tweet
+import fs2._
+import fs2.async.mutable.Queue
+import java.util.Date
+import org.scalacheck.Arbitrary._
+import org.scalacheck._
+import org.scalatest.Matchers._
+import org.scalatest._
+import org.scalatest.prop._
+import scala.collection.Map
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import me.peterbecich.bannodemo.twitter.TweetGen._
+import me.peterbecich.bannodemo.twitter.TwitterSourceGen._
 
 import TwitterAverage._
 
 class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
-  import TweetGen._
-  import TwitterQueueGen._
 
   implicit override val generatorDrivenConfig =
     PropertyCheckConfig(minSize = 100, maxSize = 1500)

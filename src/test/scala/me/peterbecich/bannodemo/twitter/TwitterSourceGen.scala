@@ -15,7 +15,7 @@ import scala.collection.Map
 
 import com.danielasfregola.twitter4s.entities.Tweet
 
-import me.peterbecich.bannodemo.twitter.TwitterQueue._
+import me.peterbecich.bannodemo.twitter.TwitterSource._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
  */
 
-object TwitterQueueGen {
+object TwitterSourceGen {
   import TweetGen._
 
   import fs2._
