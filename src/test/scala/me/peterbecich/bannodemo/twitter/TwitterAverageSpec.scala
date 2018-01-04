@@ -96,7 +96,7 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
         }
 
       val triemap = getTriemap.unsafeRunSync
-      println("time table size: "+triemap.size)
+      // println("time table size: "+triemap.size)
       triemap.size should be > 0
 
     }
@@ -115,7 +115,7 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
         }
 
       val triemap = getTriemap.unsafeRunSync
-      println("time table size: "+triemap.size)
+      // println("time table size: "+triemap.size)
       triemap.size should be <= 10
 
     }
@@ -134,7 +134,7 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
         }
 
       val (sum, count) = getHour.unsafeRunSync
-      println("sum: "+sum+" count: "+count)
+      // println("sum: "+sum+" count: "+count)
       sum.toInt should be > 0
 
     }
@@ -154,19 +154,18 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
         }
 
       val getPayloadCount: IO[Int] = getAveragePayloads.flatMap { payloadStream =>
-        payloadStream.map { payload =>
-          println(payload); 1}.take(1).runFold(0){ (s, _) => s + 1 }
+        payloadStream.map { _ => 1}.take(1).runFold(0){ (s, _) => s + 1 }
       }
 
       val payloadCount = getPayloadCount.unsafeRunSync()
 
-      println("average payload count: "+payloadCount)
+      // println("average payload count: "+payloadCount)
 
       payloadCount should be > 0
     }
   }
 
-  property("TwitterAverage produces more than one AveragePayload???") {
+  property("TwitterAverage produces more than one AveragePayload") {
     forAll { (tweets: Stream[IO, Tweet]) =>
       val makeTweetAverage: IO[TwitterAverage] =
         TwitterAverage.makeAverage("TweetAverage", (_) => true)
@@ -181,20 +180,19 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
 
       val getPayloadCount: IO[Int] =
         getPayloadStream.flatMap { payloadStream =>
-          payloadStream.map { payload =>
-            println(payload); 1 }.take(5).runFold(0){ (s, _) => s + 1 }
+          payloadStream.map { _ => 1 }.take(5).runFold(0){ (s, _) => s + 1 }
         }
 
       val payloadCount = getPayloadCount.unsafeRunSync()
 
-      println("Twitter average should produce more than one AveragePayload")
-      println("average payload count: "+payloadCount)
+      // println("Twitter average should produce more than one AveragePayload")
+      // println("average payload count: "+payloadCount)
 
-      payloadCount should be > 0
+      payloadCount should be > 1
     }
   }
 
-  property("TwitterAverage produces more than one AveragePayload, with slow Tweet stream???") {
+  property("TwitterAverage produces more than one AveragePayload, with slow Tweet stream") {
     forAll(slowTwitterStreamGen) { (tweets: Stream[IO, Tweet]) =>
       val makeTweetAverage: IO[TwitterAverage] =
         TwitterAverage.makeAverage("TweetAverage", (_) => true)
@@ -209,16 +207,15 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
 
       val getPayloadCount: IO[Int] =
         getPayloadStream.flatMap { payloadStream =>
-          payloadStream.map { payload =>
-            println(payload); 1 }.take(5).runFold(0){ (s, _) => s + 1 }
+          payloadStream.map { _ => 1 }.take(5).runFold(0){ (s, _) => s + 1 }
         }
 
       val payloadCount = getPayloadCount.unsafeRunSync()
 
-      println("Twitter average should produce more than one AveragePayload; slow Tweet stream")
-      println("average payload count: "+payloadCount)
+      // println("Twitter average should produce more than one AveragePayload; slow Tweet stream")
+      // println("average payload count from slow stream: "+payloadCount)
 
-      payloadCount should be > 0
+      payloadCount should be > 1
     }
   }
   

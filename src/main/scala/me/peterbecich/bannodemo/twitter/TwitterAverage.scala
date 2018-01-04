@@ -37,7 +37,7 @@ object TwitterAverage {
     val sum: Long
     val count: Long
     val seconds: Long
-    val average: Double = sum * 1.0 / seconds
+    def average: Double = sum * 1.0 / seconds
     def add(s: Long, n: Long): CountAccumulator
     val ts: LocalDateTime
   }
@@ -45,26 +45,29 @@ object TwitterAverage {
   case class SecondCountAccumulator(
     sum: Long = 0,
     count: Long = 0,
-    ts: LocalDateTime = LocalDateTime.now()
+    ts: LocalDateTime
   ) extends CountAccumulator {
     val seconds = 1
-    def add(s: Long, n: Long): SecondCountAccumulator = this.copy(sum+s, count+n)
+    def add(s: Long, n: Long): SecondCountAccumulator =
+      this.copy(sum+s, count+n, ts = LocalDateTime.now())
   }
   case class MinuteCountAccumulator(
     sum: Long = 0,
     count: Long = 0,
-    ts: LocalDateTime = LocalDateTime.now()
+    ts: LocalDateTime
   ) extends CountAccumulator {
     val seconds = minute
-    def add(s: Long, n: Long): MinuteCountAccumulator = this.copy(sum+s, count+n)
+    def add(s: Long, n: Long): MinuteCountAccumulator =
+      this.copy(sum+s, count+n, ts = LocalDateTime.now())
   }
   case class HourCountAccumulator(
     sum: Long = 0,
     count: Long = 0,
-    ts: LocalDateTime = LocalDateTime.now()
+    ts: LocalDateTime
   ) extends CountAccumulator {
     val seconds = hour
-    def add(s: Long, n: Long): HourCountAccumulator = this.copy(sum+s, count+n)
+    def add(s: Long, n: Long): HourCountAccumulator =
+      this.copy(sum+s, count+n, ts = LocalDateTime.now())
   }
 
   object JSON {
@@ -129,9 +132,12 @@ object TwitterAverage {
 
   def makeAverage(_name: String, _predicate: Tweet => Boolean): IO[TwitterAverage] = for {
     _timeTableSignal <- makeTimeTableSignal
-    _secondCountAccumulatorSignal <- Signal.apply(SecondCountAccumulator())(IO.ioEffect, global)
-    _minuteCountAccumulatorSignal <- Signal.apply(MinuteCountAccumulator())(IO.ioEffect, global)
-    _hourCountAccumulatorSignal <- Signal.apply(HourCountAccumulator())(IO.ioEffect, global)
+    _secondCountAccumulatorSignal <- Signal.apply {
+      SecondCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
+    _minuteCountAccumulatorSignal <- Signal.apply {
+      MinuteCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
+    _hourCountAccumulatorSignal <- Signal.apply {
+      HourCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
   } yield {
     new TwitterAverage {
       val name = _name
@@ -146,9 +152,12 @@ object TwitterAverage {
   def _makeAverage(_name: String, _predicate: Tweet => Boolean):
       IO[(TwitterAverage, TimeTableSignal)] = for {
     _timeTableSignal <- makeTimeTableSignal
-    _secondCountAccumulatorSignal <- Signal.apply(SecondCountAccumulator())(IO.ioEffect, global)
-    _minuteCountAccumulatorSignal <- Signal.apply(MinuteCountAccumulator())(IO.ioEffect, global)
-    _hourCountAccumulatorSignal <- Signal.apply(HourCountAccumulator())(IO.ioEffect, global)
+    _secondCountAccumulatorSignal <- Signal.apply {
+      SecondCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
+    _minuteCountAccumulatorSignal <- Signal.apply {
+      MinuteCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
+    _hourCountAccumulatorSignal <- Signal.apply {
+      HourCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
   } yield {
     (new TwitterAverage {
       val name = _name
@@ -187,6 +196,16 @@ abstract class TwitterAverage {
       minuteCountAccumulatorSignal.continuous
     val hourStream: Stream[IO, HourCountAccumulator] =
       hourCountAccumulatorSignal.continuous
+
+
+    // val secondStream: Stream[IO, SecondCountAccumulator] =
+    //   Stream.repeatEval(secondCountAccumulatorSignal.get)
+    // val minuteStream: Stream[IO, MinuteCountAccumulator] =
+    //   Stream.repeatEval(minuteCountAccumulatorSignal.get)
+    // val hourStream: Stream[IO, HourCountAccumulator] =
+    //   Stream.repeatEval(hourCountAccumulatorSignal.get)
+
+
     val zippedStreams: Stream[IO, ((SecondCountAccumulator, MinuteCountAccumulator), HourCountAccumulator)] =
       secondStream.zip(minuteStream).zip(hourStream)
 
@@ -311,7 +330,7 @@ abstract class TwitterAverage {
     hourSumSignal.discrete.flatMap { case (hourSum, hourCount) =>
       Stream.eval(hourCountAccumulatorSignal.modify { countAcc =>
         val _countAcc = countAcc.add(hourSum, hourCount)
-        // println((_countAcc.count * 1.0 / hour) + "   " + _countAcc.count + "  hourSum: " + hourSum + "  hourCount: " + hourCount)
+        // println("recalculate hourly average: " + (_countAcc.count * 1.0 / hour) + "   " + _countAcc.count + "  hourSum: " + hourSum + "  hourCount: " + hourCount)
         _countAcc
       }).drain
     }
