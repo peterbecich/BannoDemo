@@ -63,6 +63,24 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
   }
 
 
+  property("Time Table is not empty after Tweets pass through TwitterAverage") {
+    forAll { (tweets: Stream[IO, Tweet]) =>
+      val makeTweetAverage: IO[(TwitterAverage, TimeTableSignal)] =
+        TwitterAverage._makeAverage("TweetAverage", (_) => true)
+
+      val getTriemap: IO[TimeTable] =
+        makeTweetAverage.flatMap { case (tweetAverage, timeTableSignal) =>
+          tweets.through(tweetAverage.averagePipe).drain.run.flatMap { _ =>
+            timeTableSignal.get
+          }
+        }
+
+      val triemap = getTriemap.unsafeRunSync
+      // println("time table size: "+triemap.size)
+      triemap.size should be > 0
+
+    }
+  }  
 
 }
 

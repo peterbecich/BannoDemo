@@ -142,6 +142,23 @@ object TwitterAverage {
       val hourCountAccumulatorSignal = _hourCountAccumulatorSignal
      }
   }
+
+  def _makeAverage(_name: String, _predicate: Tweet => Boolean):
+      IO[(TwitterAverage, TimeTableSignal)] = for {
+    _timeTableSignal <- makeTimeTableSignal
+    _secondCountAccumulatorSignal <- Signal.apply(SecondCountAccumulator())(IO.ioEffect, global)
+    _minuteCountAccumulatorSignal <- Signal.apply(MinuteCountAccumulator())(IO.ioEffect, global)
+    _hourCountAccumulatorSignal <- Signal.apply(HourCountAccumulator())(IO.ioEffect, global)
+  } yield {
+    (new TwitterAverage {
+      val name = _name
+      val timeTableSignal = _timeTableSignal
+      val predicate = _predicate
+      val secondCountAccumulatorSignal = _secondCountAccumulatorSignal
+      val minuteCountAccumulatorSignal = _minuteCountAccumulatorSignal
+      val hourCountAccumulatorSignal = _hourCountAccumulatorSignal
+     }, _timeTableSignal)
+  }
   
   
 }
@@ -300,7 +317,7 @@ abstract class TwitterAverage {
     }
   
 
-  lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](2)
+  private lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](2)
 
   // prints Tweets/second to console every two seconds
   private lazy val recentCount: Stream[IO, (LocalDateTime, Long, Long)] =
@@ -316,7 +333,7 @@ abstract class TwitterAverage {
     }
 
   // prints Tweets/second to console every two seconds
-  lazy val printRecentCount: Stream[IO, Unit] = recentCount
+  private lazy val printRecentCount: Stream[IO, Unit] = recentCount
     .map { case (ts, count, timeTableSize) =>
       name + " " + ts.toString() + " count: " + count + " time table size: " + timeTableSize + "\n"}
     .intersperse("\n")
