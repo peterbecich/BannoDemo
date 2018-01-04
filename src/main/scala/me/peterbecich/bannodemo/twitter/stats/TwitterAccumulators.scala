@@ -8,7 +8,7 @@ import cats._
 import cats.implicits._
 import cats.syntax.all._
 import cats.effect.{IO, Sync}
-import fs2._
+import fs2.{Stream, Pipe}
 
 /*
  https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/package-summary.html
@@ -51,6 +51,20 @@ object TwitterAccumulators {
   }
   
   val accumulators = List(TweetCount, EmojiTweetCount, URLTweetCount, PicTweetCount, HashtagTweetCount)
+
+  object JSON {
+    import io.circe._
+    import io.circe.Encoder
+    import io.circe.syntax._
+    import io.circe.literal._
+    import io.circe.generic.semiauto._
+
+    import TwitterAccumulator.JSON._
+
+    type AccumulatorsPayload = Map[String, AccumulatorPayload]
+
+
+  }
 
 
   def passThru[A]: Pipe[IO, A, A] = stream => stream

@@ -50,6 +50,27 @@ object TwitterStats {
   import cats._
   import cats.implicits._
 
+  object JSON {
+    import io.circe._
+    import io.circe.Encoder
+    import io.circe.syntax._
+    import io.circe.literal._
+    import io.circe.generic.semiauto._
+
+    import stats.TwitterAverages.JSON._
+    import stats.TwitterAccumulators.JSON._
+
+    case class StatsPayload (
+      serverStartTimestamp: ZonedDateTime,
+      statsTimestamp: ZonedDateTime,
+      accumulators: AccumulatorsPayload,
+      averages: AveragesPayload
+    )
+
+    implicit val statsPayloadEncoder: Encoder[StatsPayload] = deriveEncoder
+
+  }
+
   val collectStats: IO[Unit] = 
     IO(println("acquire Twitter stream")).flatMap { _ =>
       TwitterSource.createTwitterStream.flatMap { twitterStream =>

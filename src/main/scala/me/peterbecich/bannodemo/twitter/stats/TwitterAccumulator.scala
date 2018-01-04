@@ -5,8 +5,30 @@ import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.syntax.all._
 import com.danielasfregola.twitter4s.entities.Tweet
-import fs2._
+import fs2.{Stream, Pipe}
 import java.util.concurrent.atomic.AtomicLong
+
+object TwitterAccumulator {
+  object JSON {
+    import io.circe._
+    import io.circe.Encoder
+    import io.circe.syntax._
+    import io.circe.literal._
+    import io.circe.generic.semiauto._
+
+    case class AccumulatorPayload(
+      name: String,
+      count: Long,
+      percentage: Double
+    )
+
+    implicit val accumulatorPayloadEncoder: Encoder[AccumulatorPayload] = deriveEncoder
+
+    // def makeAccumulatorPayload: AccumulatorPayload
+
+  }
+
+}
 
 abstract class TwitterAccumulator {
 
@@ -28,6 +50,7 @@ abstract class TwitterAccumulator {
     tweetCount <- TwitterAccumulators.TweetCount.getCount
     accCount <- getCount
   } yield accCount.toDouble / tweetCount
+
 
   // TODO do this in IO
   // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
