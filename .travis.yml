@@ -6,6 +6,7 @@ cache:
   timeout: 600
   directories:
     - $HOME/.ivy2
+    - $HOME/.sbt
     - $HOME/build/peterbecich/BannoDemo/target
   
 jdk:

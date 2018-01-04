@@ -54,8 +54,8 @@ object HelloWorldServer extends StreamApp[IO] with Http4sDsl[IO] {
         Ok(TwitterAccumulators.PicTweetCount.getCount.toString)
       case GET -> Root / "hashtagTweetCount" =>
         Ok(TwitterAccumulators.HashtagTweetCount.getCount.toString)
-      case GET -> Root / "stats" =>
-        Ok(TwitterStats.getTwitterStatsJSON)
+      // case GET -> Root / "stats" =>
+      //   Ok(TwitterStats.getTwitterStatsJSON)
       // case GET -> Root / "averages" =>
       //   Ok(statsPayload.take(1))
       case GET -> Root / "bannoDemo" =>

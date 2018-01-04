@@ -110,8 +110,7 @@ object TwitterStats {
     getTwitterStats.map(_.asJson)
 
 }
-
-
+ 
 object TwitterStatsExample {
   import io.circe._
 
