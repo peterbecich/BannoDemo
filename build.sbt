@@ -32,7 +32,10 @@ dockerfile in docker := {
   }
 }
 
-val Json4s = "3.5.3"
+val circe = "0.9.0"
+// val Json4s = "3.5.3"
+val Json4s = "3.6.0-M2"
+val fs2 = "0.10.0-M11"
 
 lazy val root = (project in file("."))
   .settings(
@@ -45,10 +48,10 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-circe"        % Http4sVersion,
       "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
       "org.http4s"      %% "http4s-blaze-client"          % Http4sVersion,
-      "io.circe" % "circe-generic_2.12" % "0.9.0-M3",
-      "io.circe" % "circe-literal_2.12" % "0.9.0-M3",
-      "co.fs2" %% "fs2-core" % "0.10.0-M10",
-      "co.fs2" %% "fs2-io" % "0.10.0-M10",
+      "io.circe" % "circe-generic_2.12" % circe,
+      "io.circe" % "circe-literal_2.12" % circe,
+      "co.fs2" %% "fs2-core" % fs2,
+      "co.fs2" %% "fs2-io" % fs2,
       "org.typelevel" %% "cats-core" % "1.0.0",
       // "com.danielasfregola" %% "twitter4s" % "5.3",
       // "com.danielasfregola" %% "twitter4s" % "5.5-FS2",
