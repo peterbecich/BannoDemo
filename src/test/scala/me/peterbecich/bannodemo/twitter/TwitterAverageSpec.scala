@@ -28,7 +28,7 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
   import TwitterQueueGen._
 
   implicit override val generatorDrivenConfig =
-    PropertyCheckConfig(minSize = 100, maxSize = 5000)
+    PropertyCheckConfig(minSize = 100, maxSize = 1500)
 
   property("dummy test") {
     forAll { (tweets: Stream[IO, Tweet]) =>
@@ -140,6 +140,57 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
     }
   }
   
+  
+  property("TwitterAverage produces at least one AveragePayload") {
+    forAll { (tweets: Stream[IO, Tweet]) =>
+      val makeTweetAverage: IO[TwitterAverage] =
+        TwitterAverage.makeAverage("TweetAverage", (_) => true)
+
+      val getAveragePayloads: IO[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
+        makeTweetAverage.flatMap { tweetAverage =>
+          tweets.through(tweetAverage.averagePipe).drain.run.map { _ =>
+            tweetAverage.averagePayloadStream
+          }
+        }
+
+      val getPayloadCount: IO[Int] = getAveragePayloads.flatMap { payloadStream =>
+        payloadStream.map { payload =>
+          println(payload); 1}.take(1).runFold(0){ (s, _) => s + 1 }
+      }
+
+      val payloadCount = getPayloadCount.unsafeRunSync()
+
+      println("average payload count: "+payloadCount)
+
+      payloadCount should be > 0
+    }
+  }
+
+  property("TwitterAverage produces more than one AveragePayload") {
+    forAll { (tweets: Stream[IO, Tweet]) =>
+      val makeTweetAverage: IO[TwitterAverage] =
+        TwitterAverage.makeAverage("TweetAverage", (_) => true)
+
+      def loadTweets(ave: TwitterAverage): Stream[IO, Unit] =
+        tweets.through(ave.averagePipe).drain
+
+      val getPayloadStream: IO[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
+        makeTweetAverage.map { ave =>
+          ave.averagePayloadStream.concurrently(loadTweets(ave))
+        }
+
+      val getPayloadCount: IO[Int] =
+        getPayloadStream.flatMap { payloadStream =>
+          payloadStream.take(1).runFold(0){ (s, _) => s + 1 }
+        }
+
+      val payloadCount = getPayloadCount.unsafeRunSync()
+
+      println("average payload count: "+payloadCount)
+
+      payloadCount should be > 0
+    }
+  }
   
   
 
