@@ -163,53 +163,27 @@ abstract class TwitterAverage {
   // Tweet counts for every hour; count added every second
   val hourCountAccumulatorSignal: Signal[IO, HourCountAccumulator]
 
-  // val averagePayloadStream: Stream[IO, JSON.AveragePayload] =
-  //   Stream.eval {
-  //     IO(println("produce average payload")).flatMap(_ => for {
-  //       secondCountAccumulator <- secondCountAccumulatorSignal.get
-  //       minuteCountAccumulator <- minuteCountAccumulatorSignal.get
-  //       hourCountAccumulator <- hourCountAccumulatorSignal.get
-  //     } yield JSON.makeAveragePayload(name, secondCountAccumulator, minuteCountAccumulator, hourCountAccumulator))
-  //   }
+  lazy val averagePayloadStream: Stream[IO, JSON.AveragePayload] = {
+    val secondStream: Stream[IO, SecondCountAccumulator] =
+      secondCountAccumulatorSignal.discrete
+    val minuteStream: Stream[IO, MinuteCountAccumulator] =
+      minuteCountAccumulatorSignal.discrete
+    val hourStream: Stream[IO, HourCountAccumulator] =
+      hourCountAccumulatorSignal.discrete
+    val zippedStreams: Stream[IO, ((SecondCountAccumulator, MinuteCountAccumulator), HourCountAccumulator)] =
+      secondStream.zip(minuteStream).zip(hourStream)
 
+    val _zippedStreams: Stream[IO, (SecondCountAccumulator, MinuteCountAccumulator, HourCountAccumulator)] =
+      zippedStreams.map { case ((second, minute), hour) => (second, minute, hour) }
 
-  // val averagePayloadStream: Stream[IO, JSON.AveragePayload] =
-  //   Stream.repeatEval {
-  //     IO(println("produce average payload")).flatMap(_ => for {
-  //       secondCountAccumulator <- secondCountAccumulatorSignal.get
-  //       minuteCountAccumulator <- minuteCountAccumulatorSignal.get
-  //       hourCountAccumulator <- hourCountAccumulatorSignal.get
-  //     } yield JSON.makeAveragePayload(name, secondCountAccumulator, minuteCountAccumulator, hourCountAccumulator))
-  //   }
-
-  val averagePayloadStream: Stream[IO, JSON.AveragePayload] =
-    secondCountAccumulatorSignal.continuous.flatMap { secondCountAccumulator =>
-      minuteCountAccumulatorSignal.continuous.flatMap { minuteCountAccumulator =>
-        hourCountAccumulatorSignal.continuous.map { hourCountAccumulator =>
-          JSON.makeTestPayload(name, secondCountAccumulator)
-        }
+    val payloadStream: Stream[IO, JSON.AveragePayload] =
+      _zippedStreams.map{ case (second, minute, hour) =>
+        JSON.makeAveragePayload(name, second, minute, hour)
       }
-    }
 
-  // val averagePayloadStream: Stream[IO, JSON.AveragePayload] =
-  //   Stream.eval {
-  //     IO(println("produce average payload "+LocalDateTime.now().toString())).flatMap { _ =>
-  //       secondCountAccumulatorSignal.refresh.flatMap { _ => 
-  //         secondCountAccumulatorSignal.get.map { secondCountAccumulator =>
-  //           println("second count acc: "+secondCountAccumulator)
-  //           JSON.makeTestPayload(name, secondCountAccumulator)
-  //         }
-  //       }
-  //     }
-  //   }
-  
+    payloadStream
+  }
 
-    // for { 
-    //   secondCountAccumulator <- secondCountAccumulatorSignal.discrete
-    //   minuteCountAccumulator <- minuteCountAccumulatorSignal.discrete
-    //   hourCountAccumulator <- hourCountAccumulatorSignal.discrete
-    // } yield JSON.makeAveragePayload(name, secondCountAccumulator, minuteCountAccumulator, hourCountAccumulator)
-  
 
   // for the timestamp key, increment the count value
   private def incrementTime(timestamp: LocalDateTime): IO[Unit] =

@@ -43,4 +43,21 @@ class TwitterQueueSpec extends PropSpec with PropertyChecks with Matchers {
       b should equal (Some(true))
     }
   }
+
+
+  // property("Twitter Queue holds Tweets pushed into it") {
+  //   forAll { (stream: Stream[IO, Tweet]) =>
+  //     val fullQueue: IO[Int] =
+  //       createTwitterQueue.flatMap { twitterQueue =>
+  //         stream.observe(twitterQueue.enqueue).drain.run.flatMap { _ =>
+  //           twitterQueue.size.get
+  //         }
+  //       }
+
+
+  //     fullQueue.unsafeRunSync() should be >= 0
+
+  //   }
+  // }
+
 }
