@@ -47,6 +47,18 @@ class TweetSpec extends PropSpec with PropertyChecks with Matchers {
     }
   }
 
+  property("generated old Tweet timestamps earlier than time of beginning of test") {
+    // val now = LocalDateTime.now()
+    // println("test begins: "+TweetGen.testBeginDate)
+    Thread.sleep(1000)
+    forAll(oldTweetGen) { (tweet: Tweet) =>
+      // println("test begins: "+TweetGen.testBeginDate)
+      // println("tweet time: "+tweet.created_at.toString())
+      tweet.created_at.after(TweetGen.testBeginDate) should be (false)
+    }
+  }
+  
+
 }
 
 

@@ -63,7 +63,7 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
   }
 
 
-  property("Time Table is not empty after Tweets pass through TwitterAverage") {
+  property("Time Table is not empty after Tweets pass through TwitterAverage; use _makeTweetAverage") {
     forAll { (tweets: Stream[IO, Tweet]) =>
       val makeTweetAverage: IO[(TwitterAverage, TimeTableSignal)] =
         TwitterAverage._makeAverage("TweetAverage", (_) => true)
@@ -80,7 +80,48 @@ class TwitterAverageSpec extends PropSpec with PropertyChecks with Matchers {
       triemap.size should be > 0
 
     }
+  }
+
+
+  property("Time Table is not empty after Tweets pass through TwitterAverage; use makeTweetAverage") {
+    forAll { (tweets: Stream[IO, Tweet]) =>
+      val makeTweetAverage: IO[TwitterAverage] =
+        TwitterAverage.makeAverage("TweetAverage", (_) => true)
+
+      val getTriemap: IO[TimeTable] =
+        makeTweetAverage.flatMap { tweetAverage =>
+          tweets.through(tweetAverage.averagePipe).drain.run.flatMap { _ =>
+            tweetAverage.timeTableSignal.get
+          }
+        }
+
+      val triemap = getTriemap.unsafeRunSync
+      // println("time table size: "+triemap.size)
+      triemap.size should be > 0
+
+    }
+  }
+
+  property("Tweets older than one hour are removed from TrieMap") {
+    forAll(oldTwitterStreamGen) { (tweets: Stream[IO, Tweet]) =>
+      val makeTweetAverage: IO[TwitterAverage] =
+        TwitterAverage.makeAverage("TweetAverage", (_) => true)
+
+      val getTriemap: IO[TimeTable] =
+        makeTweetAverage.flatMap { tweetAverage =>
+          tweets.through(tweetAverage.averagePipe).drain.run.flatMap { _ =>
+            tweetAverage.timeTableSignal.get
+          }
+        }
+
+      val triemap = getTriemap.unsafeRunSync
+      println("time table size: "+triemap.size)
+      triemap.size should be <= 10
+
+    }
   }  
+  
+  
 
 }
 

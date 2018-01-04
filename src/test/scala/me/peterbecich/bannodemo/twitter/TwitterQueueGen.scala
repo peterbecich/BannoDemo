@@ -35,4 +35,10 @@ object TwitterQueueGen {
   implicit val twitterStreamArbitrary: Arbitrary[Stream[IO, Tweet]] =
     Arbitrary(twitterStreamGen)
 
+  val oldTwitterStreamGen: Gen[Stream[IO, Tweet]] = for {
+    // seqTweets <- arbitrary[Seq[Tweet]]
+    n <- Gen.choose(64, 1024)
+    seqTweets <- Gen.listOfN(n, oldTweetGen)
+  } yield Stream.emits(seqTweets)
+
 }

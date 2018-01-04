@@ -73,5 +73,17 @@ object TweetGen {
 
   implicit val tweetArbitrary: Arbitrary[Tweet] = Arbitrary(tweetGen)
 
+  implicit val oldDateGen: Gen[Date] =
+    arbitrary[Int]
+      .map { millis => (millis / 2).abs }
+      .map { millis => new Date(testBegin - 24*60*60 - millis) }
+
+  val oldTweetGen: Gen[Tweet] =
+    oldDateGen.flatMap { oldDate =>
+      tweetGen.map { tweet =>
+        tweet.copy(created_at = oldDate) }
+    }
+
+
 }
 
