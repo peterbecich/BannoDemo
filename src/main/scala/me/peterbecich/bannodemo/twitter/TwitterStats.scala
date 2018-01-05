@@ -60,23 +60,12 @@ object TwitterStats {
       averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload],
       accumulatorsPayloadStream: Stream[IO, stats.TwitterAccumulators.JSON.AccumulatorsPayload]
     ): Stream[IO, StatsPayload] =
-      averagesPayloadStream.zip(accumulatorsPayloadStream)
-      .flatMap { case (averagesPayload, accumulatorsPayload) =>
-        Stream.eval(IO(ZonedDateTime.now())).map { now =>
-          StatsPayload(serverStart, now, averagesPayload, accumulatorsPayload)
+      averagesPayloadStream
+        .zip(accumulatorsPayloadStream)
+        .zip(Stream.repeatEval(IO(ZonedDateTime.now())))
+        .map { case ((averages, accumulators), now) =>
+          StatsPayload(serverStart, now, averages, accumulators)
         }
-      }
-
-
-      // accumulatorsPayloadStream
-      // .flatMap { accumulatorsPayload =>
-      //   Stream.eval(IO(ZonedDateTime.now())).map { now =>
-      //     // StatsPayload(serverStart, now, accumulatorsPayload)
-      //   }
-      // }
-
-
-
 
     def statsPayloadJsonStream(
       averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload],

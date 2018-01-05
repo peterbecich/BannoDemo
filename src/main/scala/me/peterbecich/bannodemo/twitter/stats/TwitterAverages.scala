@@ -24,10 +24,12 @@ import scala.concurrent.duration._
 
 object TwitterAverages {
 
-  private lazy val tweetAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("TweetAverage", (_) => true)
-  private lazy val emojiAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("EmojiAverage", (_) => true)
-  private lazy val hashtagAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("HashtagAverage", tweet => tweet.text.contains("#"))
-
+  private lazy val tweetAverage: IO[TwitterAverage] =
+    TwitterAverage.makeAverage("TweetAverage", (_) => true)
+  private lazy val emojiAverage: IO[TwitterAverage] =
+    TwitterAverage.makeAverage("EmojiAverage", (_) => true)
+  private lazy val hashtagAverage: IO[TwitterAverage] =
+    TwitterAverage.makeAverage("HashtagAverage", tweet => tweet.text.contains("#"))
 
   object JSON {
     import io.circe._
@@ -48,7 +50,10 @@ object TwitterAverages {
     // implicit val averagesPayloadEncoder: Encoder[AveragesPayload] = deriveEncoder
 
     def makeAveragesPayload(averages: List[AveragePayload]): AveragesPayload =
-      averages.map { avePayload => (avePayload.name, avePayload) }.toMap
+      averages.map { avePayload =>
+        // println("make averages payload: "+avePayload)
+        (avePayload.name, avePayload)
+      }.toMap
 
     def makeAveragesPayloadJson(averages: List[AveragePayload]): Json =
       makeAveragesPayload(averages).asJson
@@ -68,9 +73,7 @@ object TwitterAverages {
   }
 
   def makeConcatenatedAveragePipe(averages: List[TwitterAverage]): IO[Pipe[IO, Tweet, Tweet]] =
-    makeAverages.map { averages =>
-      Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid)
-    }
+    IO(Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid))
 
   import cats.instances.map._
   
@@ -118,6 +121,5 @@ object TwitterAverages {
         (pipe, averagesPayloadStream(averages))
       }
     }
-
 }
 
