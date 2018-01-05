@@ -90,29 +90,3 @@ object TwitterAverages {
 
 }
 
-// object TwitterAveragesExample {
-//   import fs2.{io, text}
-
-//   import TwitterAverages._
-
-//   val averageTwitter2: IO[Unit] =
-//     IO(println("acquire Twitter stream")).flatMap { _ =>
-//       TwitterQueue.createTwitterStream.flatMap { twitterStream =>
-//         TwitterAverages.makeTwitterAverages.flatMap { case averagePipe =>
-//           IO(println("acquired Twitter stream and average pipe")).flatMap { _ =>
-//             twitterStream
-//               .through(averagePipe)
-//               .drain
-//               .run
-//           }
-//         }
-//       }
-//     }
-
-//   def main(args: Array[String]): Unit = {
-//     println("twitter averages example")
-
-//     averageTwitter2.unsafeRunSync()
-//   }
- 
-// }
