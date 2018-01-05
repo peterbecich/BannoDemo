@@ -245,15 +245,19 @@ abstract class TwitterAverage {
     lazy val _zippedStreams: Stream[IO, (SecondCountAccumulator, MinuteCountAccumulator, HourCountAccumulator)] =
       zippedStreams.map { case ((second, minute), hour) => (second, minute, hour) }
 
-    lazy val payloadStream: Stream[IO, JSON.AveragePayload] = for {
-      tup <- _zippedStreams
-      (second, minute, hour) = tup
-      _ <- Stream.eval(IO(println("make average payload "+LocalDateTime.now())))
-      _ <- Stream.eval(IO(println("make average payload sec "+second)))
-      _ <- Stream.eval(IO(println("make average payload min "+minute)))
-      _ <- Stream.eval(IO(println("make average payload hour "+hour)))
-    } yield JSON.makeAveragePayload(name, second, minute, hour)
+    // lazy val payloadStream: Stream[IO, JSON.AveragePayload] = for {
+    //   tup <- _zippedStreams
+    //   (second, minute, hour) = tup
+    //   _ <- Stream.eval(IO(println("make average payload "+LocalDateTime.now())))
+    //   _ <- Stream.eval(IO(println("make average payload sec "+second)))
+    //   _ <- Stream.eval(IO(println("make average payload min "+minute)))
+    //   _ <- Stream.eval(IO(println("make average payload hour "+hour)))
+    // } yield JSON.makeAveragePayload(name, second, minute, hour)
 
+    lazy val payloadStream: Stream[IO, JSON.AveragePayload] =
+      _zippedStreams.map { case (second, minute, hour) =>
+        JSON.makeAveragePayload(name, second, minute, hour)
+      }
 
     payloadStream
   }
