@@ -23,56 +23,56 @@ import fs2.async.mutable.Queue
 import cats._
 import cats.effect.{IO, Sync}
 
-// class TwitterSourceSpec extends PropSpec with PropertyChecks with Matchers {
-//   import TwitterSourceGen._
+class TwitterSourceSpec extends PropSpec with PropertyChecks with Matchers {
+  import TwitterSourceGen._
 
-//   implicit override val generatorDrivenConfig =
-//     PropertyCheckConfig(minSize = 100, maxSize = 500)
+  implicit override val generatorDrivenConfig =
+    PropertyCheckConfig(minSize = 100, maxSize = 500)
   
 
-//   val tweetPrintSink: Sink[IO, Tweet] =
-//     (s: Stream[IO, Tweet]) => s
-//       .map(_.id_str)
-//       .through(fs2.text.utf8Encode)
-//       .through(fs2.io.stdout).drain
+  val tweetPrintSink: Sink[IO, Tweet] =
+    (s: Stream[IO, Tweet]) => s
+      .map(_.id_str)
+      .through(fs2.text.utf8Encode)
+      .through(fs2.io.stdout).drain
 
-  // property("all Tweets in Stream have fewer than 280 characters") {
-  //   forAll { (stream: Stream[IO, Tweet]) =>
+  property("all Tweets in Stream have fewer than 280 characters") {
+    forAll { (stream: Stream[IO, Tweet]) =>
 
-  //     // val b = stream.observe(tweetPrintSink).forall(tweet => tweet.text.length() <= 280).runLast(IO.ioEffect).unsafeRunSync()
+      // val b = stream.observe(tweetPrintSink).forall(tweet => tweet.text.length() <= 280).runLast(IO.ioEffect).unsafeRunSync()
       
-  //     val b = stream.forall(tweet => tweet.text.length() <= 280).runLast(IO.ioEffect).unsafeRunSync()
-  //     b should equal (Some(true))
-  //   }
-  // }
+      val b = stream.forall(tweet => tweet.text.length() <= 280).runLast(IO.ioEffect).unsafeRunSync()
+      b should equal (Some(true))
+    }
+  }
 
-  // property("Tweet Stream holds more than 0 Tweets") {
-  //   forAll { (stream: Stream[IO, Tweet]) =>
-  //     val getCount: IO[Int] = stream
-  //       .map(_ => 1)
-  //       .runFold(0){ (s, _) => s + 1 }
+  property("Tweet Stream holds more than 0 Tweets") {
+    forAll { (stream: Stream[IO, Tweet]) =>
+      val getCount: IO[Int] = stream
+        .map(_ => 1)
+        .runFold(0){ (s, _) => s + 1 }
 
-  //     val count = getCount.unsafeRunSync()
-  //     // println("count: "+count)
-  //     count should be > 0
-  //   }
-  // }
-
-
-
-  // property("Twitter Source holds Tweets pushed into it") {
-  //   forAll { (stream: Stream[IO, Tweet]) =>
-  //     val fullQueue: IO[Int] =
-  //       createTwitterQueue.flatMap { twitterQueue =>
-  //         stream.observe(twitterQueue.enqueue).drain.run.flatMap { _ =>
-  //           twitterQueue.size.get
-  //         }
-  //       }
+      val count = getCount.unsafeRunSync()
+      // println("count: "+count)
+      count should be > 0
+    }
+  }
 
 
-  //     fullQueue.unsafeRunSync() should be >= 0
 
-  //   }
-  // }
+  property("Twitter Source holds Tweets pushed into it") {
+    forAll { (stream: Stream[IO, Tweet]) =>
+      val fullQueue: IO[Int] =
+        createTwitterQueue.flatMap { twitterQueue =>
+          stream.observe(twitterQueue.enqueue).drain.run.flatMap { _ =>
+            twitterQueue.size.get
+          }
+        }
 
-// }
+
+      fullQueue.unsafeRunSync() should be >= 0
+
+    }
+  }
+
+}
