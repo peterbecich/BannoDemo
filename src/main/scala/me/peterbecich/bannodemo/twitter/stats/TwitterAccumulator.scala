@@ -47,11 +47,11 @@ object TwitterAccumulator {
     implicit val accumulatorPayloadEncoder: Encoder[AccumulatorPayload] = deriveEncoder
 
     def makeAccumulatorPayload(accumulator: TwitterAccumulator):
-        IO[AccumulatorPayload] = ???
-      // for {
-      //   count <- accumulator.getCount
-      //   percentage <- accumulator.
-      // } yield AccumulatorPayload(accumulator.name, count, percentage)
+        IO[AccumulatorPayload] = 
+      for {
+        count <- accumulator.countSignal.get
+        // percentage <- accumulator.percentage.head
+      } yield AccumulatorPayload(accumulator.name, count, 1.0)
 
 
   }
@@ -97,6 +97,10 @@ abstract class TwitterAccumulator {
         .zip(countSignal.continuous)
         .map { case (total, count) => count.toDouble / total }
   }
+
+  lazy val accumulatorPayloadStream:
+      Stream[IO, TwitterAccumulator.JSON.AccumulatorPayload] =
+    Stream.repeatEval(TwitterAccumulator.JSON.makeAccumulatorPayload(this))
 
   val accumulatorPipe: Pipe[IO, Tweet, Tweet] =
     (input: Stream[IO, Tweet]) => input.flatMap { tweet =>

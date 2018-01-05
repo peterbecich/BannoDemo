@@ -55,24 +55,29 @@ object TwitterStats {
     case class StatsPayload (
       serverStartTimestamp: ZonedDateTime,
       statsTimestamp: ZonedDateTime,
-      // accumulators: AccumulatorsPayload,
+      accumulators: AccumulatorsPayload,
       averages: AveragesPayload
     )
 
     implicit val statsPayloadEncoder: Encoder[StatsPayload] = deriveEncoder
 
     private def statsPayloadStream(
-      averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload]
-    ): Stream[IO, StatsPayload] = averagesPayloadStream  // TODO zip with other payload streams, here
-      .flatMap { averagesPayload =>
+      averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload],
+      accumulatorsPayloadStream: Stream[IO, stats.TwitterAccumulators.JSON.AccumulatorsPayload]
+    ): Stream[IO, StatsPayload] =
+      averagesPayloadStream.zip(accumulatorsPayloadStream)
+      .flatMap { case (averagesPayload, accumulatorsPayload) =>
         Stream.eval(IO(ZonedDateTime.now())).map { now =>
-          StatsPayload(serverStart, now, averagesPayload)
+          StatsPayload(serverStart, now, accumulatorsPayload, averagesPayload)
         }
       }
 
     def statsPayloadJsonStream(
-      averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload]
-    ): Stream[IO, Json] = statsPayloadStream(averagesPayloadStream).map(_.asJson)
+      averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload],
+      accumulatorsPayloadStream: Stream[IO, stats.TwitterAccumulators.JSON.AccumulatorsPayload]
+    ): Stream[IO, Json] =
+      statsPayloadStream(averagesPayloadStream, accumulatorsPayloadStream)
+        .map(_.asJson)
 
   }
 
@@ -81,7 +86,8 @@ object TwitterStats {
       _ <- IO(println("acquire Twitter stream"))
       twitterStream <- TwitterSource.createTwitterStream
       _ <- IO(println("make accumulators pipeline"))
-      accumulatorPipe <- TwitterAccumulators.makeAccumulator
+      accumulatorTup <- TwitterAccumulators.makeTwitterAccumulator
+      (accumulatorPipe, accumulatorsPayloadStream) = accumulatorTup
       _ <- IO(println("make averages pipeline"))
       averagesTup <- TwitterAverages.makeTwitterAverages
       (averagePipe, averagesPayloadStream) = averagesTup
@@ -93,7 +99,7 @@ object TwitterStats {
         .drain
         .run
         .runAsync { case _ => IO(()) }
-        .flatMap { _ => IO(JSON.statsPayloadJsonStream(averagesPayloadStream)) }
+        .flatMap { _ => IO(JSON.statsPayloadJsonStream(averagesPayloadStream, accumulatorsPayloadStream)) }
     }
   }.flatten
 

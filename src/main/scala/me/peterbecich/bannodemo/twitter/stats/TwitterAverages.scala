@@ -71,8 +71,7 @@ object TwitterAverages {
       Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid)
     }
 
-  def averagesPayloadStream(averages: List[TwitterAverage]): Stream[IO, JSON.AveragesPayload] =
-    fs2.Scheduler[IO](2).flatMap { scheduler => 
+  def averagesPayloadStream(averages: List[TwitterAverage]): Stream[IO, JSON.AveragesPayload] = {
       lazy val averagePayloads: List[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
         averages.map(_.averagePayloadStream)
 

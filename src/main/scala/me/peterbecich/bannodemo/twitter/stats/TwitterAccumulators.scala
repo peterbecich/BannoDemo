@@ -27,6 +27,22 @@ object TwitterAccumulators {
       hashtags <- TwitterAccumulator.makeAccumulator("HashtagAccumulator", tweet => tweet.text.contains("#"), Some(tweets))
     } yield List(tweets, emojis, urls, pics, hashtags)
 
+
+  def accumulatorsPayloadStream(accumulators: List[TwitterAccumulator]):
+      Stream[IO, JSON.AccumulatorsPayload] = {
+    lazy val accumulatorPayloads: List[Stream[IO, TwitterAccumulator.JSON.AccumulatorPayload]] =
+      accumulators
+        .map(_.accumulatorPayloadStream)
+
+    lazy val streamListPayload: Stream[IO, List[TwitterAccumulator.JSON.AccumulatorPayload]] =
+      Traverse[List].sequence(accumulatorPayloads)
+
+    streamListPayload.map(JSON.makeAccumulatorsPayload)
+  }
+
+
+
+
   def passThru[A]: Pipe[IO, A, A] = stream => stream
 
   def pipeConcatenationMonoid[A] = new Monoid[Pipe[IO, A, A]] {
@@ -35,9 +51,15 @@ object TwitterAccumulators {
     def empty: Pipe[IO, A, A] = passThru[A]
   }
 
-  val makeAccumulator: IO[Pipe[IO, Tweet, Tweet]] =
-    makeAccumulators.map { accumulators =>
-      Foldable[List].foldMap(accumulators)(_.accumulatorPipe)(pipeConcatenationMonoid[Tweet])
+  private def makeAccumulatorPipe(accumulators: List[TwitterAccumulator]):
+      IO[Pipe[IO, Tweet, Tweet]] =
+    IO(Foldable[List].foldMap(accumulators)(_.accumulatorPipe)(pipeConcatenationMonoid[Tweet]))
+
+  val makeTwitterAccumulator: IO[(Pipe[IO, Tweet, Tweet], Stream[IO, JSON.AccumulatorsPayload])] =
+    makeAccumulators.flatMap { accumulators =>
+      makeAccumulatorPipe(accumulators).map { pipe =>
+        (pipe, accumulatorsPayloadStream(accumulators))
+      }
     }
 
 
@@ -54,6 +76,9 @@ object TwitterAccumulators {
 
     type AccumulatorsPayload = Map[String, AccumulatorPayload]
 
+    def makeAccumulatorsPayload(accumulators: List[TwitterAccumulator.JSON.AccumulatorPayload]):
+        AccumulatorsPayload =
+      accumulators.map { acc => (acc.name, acc) }.toMap
 
   }
 
