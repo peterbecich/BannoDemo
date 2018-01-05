@@ -29,7 +29,7 @@ dockerfile in docker := {
     from("java")
     add(artifact, artifactTargetPath)
     copy(baseDirectory(_ / "BannoDemo-frontend" / "static").value, file("/srv/static"))
-    copy(baseDirectory(_ / "src" / "main" / "resources" / "emoji-data" ).value, file("/srv/emoji-data"))
+    // copy(baseDirectory(_ / "src" / "main" / "resources" / "emoji-data" ).value, file("/srv/emoji-data"))
     entryPoint("java", "-jar", artifactTargetPath)
   }
 }
@@ -37,7 +37,8 @@ dockerfile in docker := {
 val circe = "0.9.0"
 // val Json4s = "3.5.3"
 val Json4s = "3.6.0-M2"
-val fs2 = "0.10.0-M11"
+// val fs2 = "0.10.0-M11"
+val fs2 = "0.10.0-M10"
 
 lazy val root = (project in file("."))
   .settings(
