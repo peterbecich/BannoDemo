@@ -16,6 +16,8 @@ imageNames in docker := Seq(
   ImageName(s"peterbecich/${name.value}:latest")
 )
 
+parallelExecution in ThisBuild := false
+
 mainClass in assembly := Some("me.peterbecich.bannodemo.HelloWorldServer")
 
 dockerfile in docker := {
