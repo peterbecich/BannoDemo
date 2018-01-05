@@ -55,8 +55,8 @@ object TwitterStats {
     case class StatsPayload (
       serverStartTimestamp: ZonedDateTime,
       statsTimestamp: ZonedDateTime,
-      accumulators: AccumulatorsPayload,
-      averages: AveragesPayload
+      averages: AveragesPayload,
+      accumulators: AccumulatorsPayload
     )
 
     implicit val statsPayloadEncoder: Encoder[StatsPayload] = deriveEncoder
@@ -68,9 +68,20 @@ object TwitterStats {
       averagesPayloadStream.zip(accumulatorsPayloadStream)
       .flatMap { case (averagesPayload, accumulatorsPayload) =>
         Stream.eval(IO(ZonedDateTime.now())).map { now =>
-          StatsPayload(serverStart, now, accumulatorsPayload, averagesPayload)
+          StatsPayload(serverStart, now, averagesPayload, accumulatorsPayload)
         }
       }
+
+
+      // accumulatorsPayloadStream
+      // .flatMap { accumulatorsPayload =>
+      //   Stream.eval(IO(ZonedDateTime.now())).map { now =>
+      //     // StatsPayload(serverStart, now, accumulatorsPayload)
+      //   }
+      // }
+
+
+
 
     def statsPayloadJsonStream(
       averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload],

@@ -29,26 +29,28 @@ object TwitterStatsExample {
   import io.circe._
 
   
-  // val pipeline: IO[Unit] = TwitterStats.collectStats
-  //   .flatMap { statsPayloadStream =>
-  //     fs2.Scheduler.apply[IO](2).flatMap { scheduler =>
-  //       statsPayloadStream.flatMap { payload =>
-  //         scheduler.delay(Stream.emit(payload), 100.millisecond)
-  //       }.map(_.toString)
-  //         .through(fs2.text.utf8Encode)
-  //         .through(fs2.io.stdout)
-  //         .drain
-  //     }.run
-  //   }
-
   val pipeline: IO[Unit] = TwitterStats.collectStats
     .flatMap { statsPayloadStream =>
-      statsPayloadStream.map(_.toString)
-        .through(fs2.text.utf8Encode)
-        .through(fs2.io.stdout)
-        .drain
-        .run
+      fs2.Scheduler.apply[IO](2).flatMap { scheduler =>
+        statsPayloadStream.flatMap { payload =>
+          val emission = Stream.covaryPure[IO,io.circe.Json,io.circe.Json](Stream.emit(payload))
+          scheduler.delay[IO, io.circe.Json](emission, 1000.millisecond)
+        }.map(_.toString)
+          .intersperse("\n --------------- \n")
+          .through(fs2.text.utf8Encode)
+          .through(fs2.io.stdout)
+          .drain
+      }.run
     }
+
+  // val pipeline: IO[Unit] = TwitterStats.collectStats
+  //   .flatMap { statsPayloadStream =>
+  //     statsPayloadStream.map(_.toString)
+  //       .through(fs2.text.utf8Encode)
+  //       .through(fs2.io.stdout)
+  //       .drain
+  //       .run
+  //   }
   
 
   def main(args: Array[String]): Unit = {

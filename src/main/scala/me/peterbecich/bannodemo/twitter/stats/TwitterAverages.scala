@@ -24,8 +24,9 @@ import scala.concurrent.duration._
 
 object TwitterAverages {
 
-  private val tweetAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("TweetAverage", (_) => true)
-  private val emojiAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("EmojiAverage", (_) => true)
+  private lazy val tweetAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("TweetAverage", (_) => true)
+  private lazy val emojiAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("EmojiAverage", (_) => true)
+  private lazy val hashtagAverage: IO[TwitterAverage] = TwitterAverage.makeAverage("HashtagAverage", tweet => tweet.text.contains("#"))
 
 
   object JSON {
@@ -55,8 +56,8 @@ object TwitterAverages {
   }
 
 
-  private val makeAverages: IO[List[TwitterAverage]] =
-    Traverse[List].sequence(List(tweetAverage, emojiAverage))
+  private def makeAverages: IO[List[TwitterAverage]] =
+    Traverse[List].sequence(List(tweetAverage, emojiAverage, hashtagAverage))
 
   private def passThru[A]: Pipe[IO, A, A] = stream => stream
 
@@ -71,16 +72,33 @@ object TwitterAverages {
       Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid)
     }
 
+  import cats.instances.map._
+  
+  import scala.collection.immutable.HashMap
+
   def averagesPayloadStream(averages: List[TwitterAverage]): Stream[IO, JSON.AveragesPayload] = {
-      lazy val averagePayloads: List[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
-        averages.map(_.averagePayloadStream)
+    val averagePayloads: List[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
+      averages.map(_.averagePayloadStream)
 
-      lazy val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
-        Traverse[List].sequence(averagePayloads)
+    val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
+      Traverse[List].sequence(averagePayloads).flatMap { ll =>
+        Stream.eval(IO(println("stream list payload: "+ll))).map { _ =>
+          ll
+        }
+      }
 
-      // scheduler.delay(streamListPayload.map(JSON.makeAveragesPayloadJson), 20.second)
-      streamListPayload.map(JSON.makeAveragesPayload)
+    streamListPayload.map(JSON.makeAveragesPayload).flatMap { averages =>
+      Stream.eval(IO(println("averages payload: "+averages))).map { _ =>
+        averages}
     }
+
+    // val ave = averages(0)
+    // val aves = ave.averagePayloadStream
+    // val m: Stream[IO, Map[String, TwitterAverage.JSON.AveragePayload]] =
+    //   aves.map { x => HashMap((x.name, x)) }
+
+    // m
+  }
 
   val makeTwitterAverages: IO[(Pipe[IO, Tweet, Tweet], Stream[IO, JSON.AveragesPayload])] =
     makeAverages.flatMap { averages =>

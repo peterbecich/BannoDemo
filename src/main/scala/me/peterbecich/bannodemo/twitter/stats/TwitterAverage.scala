@@ -103,26 +103,26 @@ object TwitterAverage {
         hourCountAcc.average, hourCountAcc.ts
       )
 
-    def makeTestPayload(
-      name: String,
-      secondCountAcc: SecondCountAccumulator
-    ): AveragePayload =
-      AveragePayload(name,
-        secondCountAcc.average, secondCountAcc.ts,
-        secondCountAcc.average, secondCountAcc.ts,
-        secondCountAcc.average, secondCountAcc.ts
-      )
+    // def makeTestPayload(
+    //   name: String,
+    //   secondCountAcc: SecondCountAccumulator
+    // ): AveragePayload =
+    //   AveragePayload(name,
+    //     secondCountAcc.average, secondCountAcc.ts,
+    //     secondCountAcc.average, secondCountAcc.ts,
+    //     secondCountAcc.average, secondCountAcc.ts
+    //   )
     
-    private def _makeAveragePayloadJson(averagePayload: AveragePayload): Json =
-      averagePayload.asJson
+    // private def _makeAveragePayloadJson(averagePayload: AveragePayload): Json =
+    //   averagePayload.asJson
 
-    def makeAveragePayloadJson(
-      name: String,
-      secondCountAcc: SecondCountAccumulator,
-      minuteCountAcc: MinuteCountAccumulator,
-      hourCountAcc: HourCountAccumulator
-    ): Json =
-      _makeAveragePayloadJson(makeAveragePayload(name, secondCountAcc, minuteCountAcc, hourCountAcc))
+    // def makeAveragePayloadJson(
+    //   name: String,
+    //   secondCountAcc: SecondCountAccumulator,
+    //   minuteCountAcc: MinuteCountAccumulator,
+    //   hourCountAcc: HourCountAccumulator
+    // ): Json =
+    //   _makeAveragePayloadJson(makeAveragePayload(name, secondCountAcc, minuteCountAcc, hourCountAcc))
 
     
   }
@@ -190,20 +190,32 @@ abstract class TwitterAverage {
   val hourCountAccumulatorSignal: Signal[IO, HourCountAccumulator]
 
   lazy val averagePayloadStream: Stream[IO, JSON.AveragePayload] = {
-    // val secondStream: Stream[IO, SecondCountAccumulator] =
-    //   secondCountAccumulatorSignal.continuous
-    // val minuteStream: Stream[IO, MinuteCountAccumulator] =
-    //   minuteCountAccumulatorSignal.continuous
-    // val hourStream: Stream[IO, HourCountAccumulator] =
-    //   hourCountAccumulatorSignal.continuous
+    lazy val secondStream: Stream[IO, SecondCountAccumulator] =
+      Stream.repeatEval(secondCountAccumulatorSignal.get).flatMap { acc =>
+        Stream.eval(IO(println("payload second: "+acc))).flatMap { _ =>
+          Stream.emit(acc)
+        }
+      }
+    lazy val minuteStream: Stream[IO, MinuteCountAccumulator] =
+      Stream.repeatEval(minuteCountAccumulatorSignal.get).flatMap { acc =>
+        Stream.eval(IO(println("payload minute: "+acc))).flatMap { _ =>
+          Stream.emit(acc)
+        }
+      }
+    lazy val hourStream: Stream[IO, HourCountAccumulator] =
+      Stream.repeatEval(hourCountAccumulatorSignal.get).flatMap { acc =>
+        Stream.eval(IO(println("payload hour: "+acc))).flatMap { _ =>
+          Stream.emit(acc)
+        }
+      }
 
 
-    def secondStream: Stream[IO, SecondCountAccumulator] =
-      Stream.eval(secondCountAccumulatorSignal.get)
-    def minuteStream: Stream[IO, MinuteCountAccumulator] =
-      Stream.eval(minuteCountAccumulatorSignal.get)
-    def hourStream: Stream[IO, HourCountAccumulator] =
-      Stream.eval(hourCountAccumulatorSignal.get)
+    // def secondStream: Stream[IO, SecondCountAccumulator] =
+    //   Stream.eval(secondCountAccumulatorSignal.get).map(acc => {println(acc); acc})
+    // def minuteStream: Stream[IO, MinuteCountAccumulator] =
+    //   Stream.eval(minuteCountAccumulatorSignal.get).map(acc => {println(acc); acc})
+    // def hourStream: Stream[IO, HourCountAccumulator] =
+    //   Stream.eval(hourCountAccumulatorSignal.get).map(acc => {println(acc); acc})
 
 
     lazy val zippedStreams: Stream[IO, ((SecondCountAccumulator, MinuteCountAccumulator), HourCountAccumulator)] =
@@ -212,13 +224,19 @@ abstract class TwitterAverage {
     lazy val _zippedStreams: Stream[IO, (SecondCountAccumulator, MinuteCountAccumulator, HourCountAccumulator)] =
       zippedStreams.map { case ((second, minute), hour) => (second, minute, hour) }
 
-    lazy val payloadStream: Stream[IO, JSON.AveragePayload] =
-      _zippedStreams.map { case (second, minute, hour) =>
-        JSON.makeAveragePayload(name, second, minute, hour)
-      }
+    lazy val payloadStream: Stream[IO, JSON.AveragePayload] = for {
+      tup <- _zippedStreams
+      (second, minute, hour) = tup
+      _ <- Stream.eval(IO(println("make average payload "+LocalDateTime.now())))
+      _ <- Stream.eval(IO(println("make average payload sec "+second)))
+      _ <- Stream.eval(IO(println("make average payload min "+minute)))
+      _ <- Stream.eval(IO(println("make average payload hour "+hour)))
+    } yield JSON.makeAveragePayload(name, second, minute, hour)
+
 
     payloadStream
   }
+
 
 
   // for the timestamp key, increment the count value
@@ -269,74 +287,98 @@ abstract class TwitterAverage {
     }
   }
 
-  private def truncateTimeTable(secondsThreshold: Long): TimeTableSignal =
-    timeTableSignal.imap { timeTable =>
+  private def truncateTimeTable(secondsThreshold: Long): IO[TimeTable] =
+    timeTableSignal.get.map { timeTable =>
       val zone = ZoneOffset.ofHours(0)
       val now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
       def diffUnderThreshold(ts1: LocalDateTime): Boolean = {
         val diff = now.toEpochSecond(zone) - ts1.toEpochSecond(zone)
         (diff) < secondsThreshold
       }
-      val timeTable2: TimeTable = timeTable.filter((kv) => diffUnderThreshold(kv._1))
-      timeTable2
-    }(identity)
+      timeTable.filter((kv) => diffUnderThreshold(kv._1))
+    }
 
-  private lazy val priorSecondTimeTable: TimeTableSignal =
-    timeTableSignal.imap { timeTable =>
+  private def priorSecondTimeTable: IO[TimeTable] =
+    timeTableSignal.get.map { timeTable =>
       val zone = ZoneOffset.ofHours(0)
       val now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
       timeTable.filter((kv) => kv._1 == now)
-    }(identity)
+    }
 
-  private lazy val priorMinuteTimeTable: TimeTableSignal =
+  private def priorMinuteTimeTable: IO[TimeTable] =
     truncateTimeTable(60)
 
-  private lazy val priorHourTimeTable: TimeTableSignal =
+  private def priorHourTimeTable: IO[TimeTable] =
     truncateTimeTable(hour)
 
   // sum of tweets in the past second
-  private lazy val secondSumSignal: ISignal[IO, (Long, Long)] =
+  private def secondSum: IO[(Long, Long)] =
     priorSecondTimeTable.map { timeTable =>
       (timeTable.values.sum, timeTable.size)
     }
 
   // sum of tweets in the past minute, from this second
-  private lazy val minuteSumSignal: ISignal[IO, (Long, Long)] =
+  private def minuteSum: IO[(Long, Long)] =
     priorMinuteTimeTable.map { timeTable =>
       (timeTable.values.sum, timeTable.size)
     }
 
   // sum of tweets in the past hour, from this second
-  lazy val hourSumSignal: ISignal[IO, (Long, Long)] =
+  private def hourSum: IO[(Long, Long)] =
     priorHourTimeTable.map { timeTable =>
       (timeTable.values.sum, timeTable.size)
     }
 
-
   // calculates second averages
   private lazy val calculateSecondAverage: Stream[IO, Unit] =
-    secondSumSignal.discrete.flatMap { case (secondSum, secondCount) =>
-      Stream.eval(secondCountAccumulatorSignal.modify { _.add(secondSum, secondCount) }).drain
-    }
+    schedulerStream.flatMap { scheduler =>
+      scheduler.fixedRate(4.second)(IO.ioEffect, global).flatMap { _ =>
+        Stream.eval(secondSum).flatMap { case (sum, count) =>
+          Stream.eval {
+            secondCountAccumulatorSignal.modify { acc =>
+              acc.add(sum, count)
+            }
+          }.flatMap { _ =>
+            Stream.eval(secondCountAccumulatorSignal.get.flatMap { acc => IO(println("second acc: "+acc)) })
+          }
+        }
+      }
+    }.drain
   
   // calculates minute averages
   private lazy val calculateMinuteAverage: Stream[IO, Unit] =
-    minuteSumSignal.discrete.flatMap { case (minuteSum, minuteCount) =>
-      Stream.eval(minuteCountAccumulatorSignal.modify { _.add(minuteSum, minuteCount) }).drain
-    }
+    schedulerStream.flatMap { scheduler =>
+      scheduler.fixedRate(4.second)(IO.ioEffect, global).flatMap { _ =>
+        Stream.eval(minuteSum).flatMap { case (sum, count) =>
+          Stream.eval {
+            minuteCountAccumulatorSignal.modify { acc =>
+              acc.add(sum, count)
+            }
+          }.flatMap { _ =>
+            Stream.eval(minuteCountAccumulatorSignal.get.flatMap { acc => IO(println("minute acc: "+acc)) })
+          }
+        }
+      }
+    }.drain
 
   // calculates hourly averages
   private lazy val calculateHourlyAverage: Stream[IO, Unit] =
-    hourSumSignal.discrete.flatMap { case (hourSum, hourCount) =>
-      Stream.eval(hourCountAccumulatorSignal.modify { countAcc =>
-        val _countAcc = countAcc.add(hourSum, hourCount)
-        // println("recalculate hourly average: " + (_countAcc.count * 1.0 / hour) + "   " + _countAcc.count + "  hourSum: " + hourSum + "  hourCount: " + hourCount)
-        _countAcc
-      }).drain
-    }
-  
+    schedulerStream.flatMap { scheduler =>
+      scheduler.fixedRate(4.second)(IO.ioEffect, global).flatMap { _ =>
+        Stream.eval(hourSum).flatMap { case (sum, count) =>
+          Stream.eval {
+            hourCountAccumulatorSignal.modify { acc =>
+              acc.add(sum, count)
+            }
+          }.flatMap { _ =>
+            Stream.eval(hourCountAccumulatorSignal.get.flatMap { acc => IO(println("hour acc: "+acc)) })
+          }
+        }
+      }
+    }.drain
 
-  private lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](2)
+
+  private lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](8)
 
   // prints Tweets/second to console every two seconds
   private lazy val recentCount: Stream[IO, (LocalDateTime, Long, Long)] =
@@ -360,6 +402,17 @@ abstract class TwitterAverage {
     .observe(fs2.io.stdout)
     .drain
 
+  lazy val watchSecondSignal: Stream[IO, Unit] =
+    schedulerStream.flatMap { scheduler =>
+      scheduler.fixedRate(8.second)(IO.ioEffect, global).flatMap { _ =>
+        Stream.eval(secondCountAccumulatorSignal.get)
+      }
+    }.map(_.toString)
+      .intersperse("\n second signal \n")
+      .through(fs2.text.utf8Encode)
+      .through(fs2.io.stdout)
+      .drain
+
   //  incrementTimePipe.andThen(filterTimeThresholdPipe)
   val averagePipe: Pipe[IO, Tweet, Tweet] =
     (s: Stream[IO, Tweet]) =>
@@ -369,5 +422,6 @@ abstract class TwitterAverage {
     .concurrently(calculateHourlyAverage)
     .concurrently(calculateMinuteAverage)
     .concurrently(calculateSecondAverage)
+    .concurrently(watchSecondSignal)
 
 }
