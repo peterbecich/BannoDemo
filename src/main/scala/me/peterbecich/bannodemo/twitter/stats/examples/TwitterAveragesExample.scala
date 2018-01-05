@@ -32,7 +32,7 @@ object TwitterAveragesExample {
   val averageTwitter2: IO[Unit] =
     IO(println("acquire Twitter stream")).flatMap { _ =>
       TwitterSource.createTwitterStream.flatMap { twitterStream =>
-        TwitterAverages.makeTwitterAverages.flatMap { case averagePipe =>
+        TwitterAverages.makeTwitterAverages.flatMap { case (averagePipe, payloadStream) =>
           IO(println("acquired Twitter stream and average pipe")).flatMap { _ =>
             twitterStream
               .through(averagePipe)

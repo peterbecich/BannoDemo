@@ -1,7 +1,11 @@
 package me.peterbecich.bannodemo.twitter
 
+import cats._
 import cats.Applicative
 import cats.effect._
+import cats.implicits._
+import cats.syntax.all._
+
 import io.circe._
 import io.circe.Encoder
 import io.circe.syntax._
@@ -31,20 +35,6 @@ import me.peterbecich.bannodemo.HelloWorldServer.serverStart
  http://http4s.org/v0.18/entity/
  */
 
-// case class TwitterStats(
-//   serverStartTimestamp: ZonedDateTime = serverStart,
-//   statsTimestamp: ZonedDateTime = ZonedDateTime.now(),
-//   tweetCount: Long,
-//   emojiTweetCount: Long,
-//   emojiPercentage: Double,
-//   urlTweetCount: Long,
-//   urlPercentage: Double,
-//   picTweetCount: Long,
-//   picPercentage: Double,
-//   hashtagTweetCount: Long,
-//   hashtagPercentage: Double
-// )
-
 object TwitterStats {
 
   import cats._
@@ -60,36 +50,56 @@ object TwitterStats {
     import stats.TwitterAverages.JSON._
     import stats.TwitterAccumulators.JSON._
 
+    val serverStart = ZonedDateTime.now()
+
     case class StatsPayload (
       serverStartTimestamp: ZonedDateTime,
       statsTimestamp: ZonedDateTime,
-      accumulators: AccumulatorsPayload,
+      // accumulators: AccumulatorsPayload,
       averages: AveragesPayload
     )
 
     implicit val statsPayloadEncoder: Encoder[StatsPayload] = deriveEncoder
 
-  }
-
-  val collectStats: IO[Unit] = 
-    IO(println("acquire Twitter stream")).flatMap { _ =>
-      TwitterSource.createTwitterStream.flatMap { twitterStream =>
-        TwitterAccumulators.makeAccumulator.flatMap { countPipe =>
-          TwitterAverages.makeTwitterAverages.flatMap { averagePipe =>
-            twitterStream
-              .through(countPipe)
-              .through(averagePipe)
-              .drain
-              .run
-              // .runAsync { case _ => IO(()) }.flatMap { _ =>
-              //   IO(averagesPayloadStream)
-              // }
-          }
+    private def statsPayloadStream(
+      averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload]
+    ): Stream[IO, StatsPayload] = averagesPayloadStream  // TODO zip with other payload streams, here
+      .flatMap { averagesPayload =>
+        Stream.eval(IO(ZonedDateTime.now())).map { now =>
+          StatsPayload(serverStart, now, averagesPayload)
         }
       }
+
+    def statsPayloadJsonStream(
+      averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload]
+    ): Stream[IO, Json] = statsPayloadStream(averagesPayloadStream).map(_.asJson)
+
+  }
+
+  lazy val collectStats: IO[Stream[IO, Json]] = {
+    for {
+      _ <- IO(println("acquire Twitter stream"))
+      twitterStream <- TwitterSource.createTwitterStream
+      _ <- IO(println("make accumulators pipeline"))
+      accumulatorPipe <- TwitterAccumulators.makeAccumulator
+      _ <- IO(println("make averages pipeline"))
+      averagesTup <- TwitterAverages.makeTwitterAverages
+      (averagePipe, averagesPayloadStream) = averagesTup
+      _ <- IO(println("begin"))
+    } yield {
+      twitterStream
+        .through(accumulatorPipe)
+        .through(averagePipe)
+        .drain
+        .run
+        .runAsync { case _ => IO(()) }
+        .flatMap { _ => IO(JSON.statsPayloadJsonStream(averagesPayloadStream)) }
     }
+  }.flatten
 
-
+  // .runAsync { case _ => IO(()) }.flatMap { _ =>
+  //   IO(averagesPayloadStream)
+  // }
 
   // http://www.java67.com/2016/03/how-to-convert-date-to-localdatetime-in-java8-example.html
   // TODO don't use server's time zone for all tweet timestamps

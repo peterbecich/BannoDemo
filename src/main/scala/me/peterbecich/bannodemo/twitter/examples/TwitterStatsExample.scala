@@ -18,6 +18,7 @@ import java.time.{LocalDateTime, ZonedDateTime}
 
 import com.danielasfregola.twitter4s.entities.Tweet
 
+import me.peterbecich.bannodemo.twitter.TwitterStats
 import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators
 import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators._
 import me.peterbecich.bannodemo.twitter.stats.TwitterAverages
@@ -28,24 +29,35 @@ object TwitterStatsExample {
   import io.circe._
 
   
-  // val pipeline: IO[Unit] = collectStats.flatMap { stats =>
-  //   stats
-  //     .take(1000)
-  //     .map(_.toString)
-  //     .through(fs2.text.utf8Encode)
-  //     .observe(fs2.io.stdout)
-  //     .drain
-  //     .run
-  // }
+  // val pipeline: IO[Unit] = TwitterStats.collectStats
+  //   .flatMap { statsPayloadStream =>
+  //     fs2.Scheduler.apply[IO](2).flatMap { scheduler =>
+  //       statsPayloadStream.flatMap { payload =>
+  //         scheduler.delay(Stream.emit(payload), 100.millisecond)
+  //       }.map(_.toString)
+  //         .through(fs2.text.utf8Encode)
+  //         .through(fs2.io.stdout)
+  //         .drain
+  //     }.run
+  //   }
 
+  val pipeline: IO[Unit] = TwitterStats.collectStats
+    .flatMap { statsPayloadStream =>
+      statsPayloadStream.map(_.toString)
+        .through(fs2.text.utf8Encode)
+        .through(fs2.io.stdout)
+        .drain
+        .run
+    }
   
 
-  // def main(args: Array[String]): Unit = {
-  //   println("twitter stats example")
+  def main(args: Array[String]): Unit = {
+    println("twitter stats example")
 
-  //   pipeline.unsafeRunSync()
+    pipeline.unsafeRunSync()
 
-  // }
+
+  }
 
 }
 
