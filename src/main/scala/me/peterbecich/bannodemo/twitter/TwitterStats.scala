@@ -1,26 +1,21 @@
 package me.peterbecich.bannodemo.twitter
 
 import cats._
-import cats.Applicative
 import cats.effect._
 import cats.implicits._
 import cats.syntax.all._
-
-import io.circe._
-import io.circe.Encoder
-import io.circe.syntax._
-import io.circe.literal._
-import io.circe.generic.semiauto._
-import org.http4s.circe._
-import me.peterbecich.bannodemo.JSON.Common._
-
-import fs2.Stream
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import java.time.{LocalDateTime, ZonedDateTime}
-
 import com.danielasfregola.twitter4s.entities.Tweet
+import fs2.Stream
+import io.circe.Encoder
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.literal._
+import io.circe.syntax._
+import java.time.{LocalDateTime, ZonedDateTime}
+import me.peterbecich.bannodemo.JSON.Common._
+import org.http4s.circe._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators
 import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators._
