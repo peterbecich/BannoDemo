@@ -218,26 +218,38 @@ abstract class TwitterAverage {
     //   Stream.eval(hourCountAccumulatorSignal.get).map(acc => {println(acc); acc})
 
 
+    // lazy val secondStream: Stream[IO, SecondCountAccumulator] =
+    //   secondCountAccumulatorSignal.continuous.flatMap { acc =>
+    //     Stream.eval(IO(println("payload second: "+acc))).flatMap { _ =>
+    //       Stream.emit(acc)
+    //     }
+    //   }
+    // lazy val minuteStream: Stream[IO, MinuteCountAccumulator] =
+    //   minuteCountAccumulatorSignal.continuous.flatMap { acc =>
+    //     Stream.eval(IO(println("payload minute: "+acc))).flatMap { _ =>
+    //       Stream.emit(acc)
+    //     }
+    //   }
+    // lazy val hourStream: Stream[IO, HourCountAccumulator] =
+    //   hourCountAccumulatorSignal.continuous.flatMap { acc =>
+    //     Stream.eval(IO(println("payload hour: "+acc))).flatMap { _ =>
+    //       Stream.emit(acc)
+    //     }
+    //   }
+
+
     lazy val secondStream: Stream[IO, SecondCountAccumulator] =
       secondCountAccumulatorSignal.continuous.flatMap { acc =>
-        Stream.eval(IO(println("payload second: "+acc))).flatMap { _ =>
-          Stream.emit(acc)
-        }
+        Stream.emit(acc)
       }
     lazy val minuteStream: Stream[IO, MinuteCountAccumulator] =
       minuteCountAccumulatorSignal.continuous.flatMap { acc =>
-        Stream.eval(IO(println("payload minute: "+acc))).flatMap { _ =>
-          Stream.emit(acc)
-        }
+        Stream.emit(acc)
       }
     lazy val hourStream: Stream[IO, HourCountAccumulator] =
       hourCountAccumulatorSignal.continuous.flatMap { acc =>
-        Stream.eval(IO(println("payload hour: "+acc))).flatMap { _ =>
-          Stream.emit(acc)
-        }
+        Stream.emit(acc)
       }
-    
-
 
     lazy val zippedStreams: Stream[IO, ((SecondCountAccumulator, MinuteCountAccumulator), HourCountAccumulator)] =
       secondStream.zip(minuteStream).zip(hourStream)
@@ -363,8 +375,6 @@ abstract class TwitterAverage {
             secondCountAccumulatorSignal.modify { acc =>
               acc.add(sum, count)
             }
-          }.flatMap { _ =>
-            Stream.eval(secondCountAccumulatorSignal.get.flatMap { acc => IO(println("second acc: "+acc)) })
           }
         }
       }
@@ -379,8 +389,6 @@ abstract class TwitterAverage {
             minuteCountAccumulatorSignal.modify { acc =>
               acc.add(sum, count)
             }
-          }.flatMap { _ =>
-            Stream.eval(minuteCountAccumulatorSignal.get.flatMap { acc => IO(println("minute acc: "+acc)) })
           }
         }
       }
@@ -395,8 +403,6 @@ abstract class TwitterAverage {
             hourCountAccumulatorSignal.modify { acc =>
               acc.add(sum, count)
             }
-          }.flatMap { _ =>
-            Stream.eval(hourCountAccumulatorSignal.get.flatMap { acc => IO(println("hour acc: "+acc)) })
           }
         }
       }
