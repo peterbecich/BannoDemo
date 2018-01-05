@@ -18,39 +18,30 @@ import fs2.{Stream, Pipe}
 
 object TwitterAccumulators {
 
+  private lazy val makeAccumulators: IO[List[TwitterAccumulator]] =
+    for {
+      tweets <- TwitterAccumulator.makeAccumulator("TweetAccumulator", _ => true)
+      emojis <- TwitterAccumulator.makeAccumulator("EmojiAccumulator", _ => true, Some(tweets))
+      urls <- TwitterAccumulator.makeAccumulator("URLAccumulator", tweet => tweet.text.contains("http"), Some(tweets))
+      pics <- TwitterAccumulator.makeAccumulator("PicAccumulator", _ => true, Some(tweets))
+      hashtags <- TwitterAccumulator.makeAccumulator("HashtagAccumulator", tweet => tweet.text.contains("#"), Some(tweets))
+    } yield List(tweets, emojis, urls, pics, hashtags)
 
-  case object TweetCount extends TwitterAccumulator {
-    val predicate: Tweet => Boolean = _ => true
-    val name = "TweetCount"
+  def passThru[A]: Pipe[IO, A, A] = stream => stream
+
+  def pipeConcatenationMonoid[A] = new Monoid[Pipe[IO, A, A]] {
+    def combine(pipe1: Pipe[IO, A, A], pipe2: Pipe[IO, A, A]): Pipe[IO, A, A] =
+      pipe1.andThen(pipe2)
+    def empty: Pipe[IO, A, A] = passThru[A]
   }
 
-  case object EmojiTweetCount extends TwitterAccumulator {
-    val predicate: Tweet => Boolean = _ => true // TODO emoji predicate
-    val name = "EmojiTweetCount"
-  }
+  val makeAccumulator: IO[Pipe[IO, Tweet, Tweet]] =
+    makeAccumulators.map { accumulators =>
+      Foldable[List].foldMap(accumulators)(_.accumulatorPipe)(pipeConcatenationMonoid[Tweet])
+    }
 
-  case object URLTweetCount extends TwitterAccumulator {
-    val predicate: Tweet => Boolean =
-      tweet => tweet.text.contains("http")
-    val name = "URLTweetCount"
-  }
 
-  case object PicTweetCount extends TwitterAccumulator {
-    val predicate: Tweet => Boolean =
-      tweet => tweet.text.contains("pbs.twimg.com") ||
-        tweet.text.contains("pic.twitter.com") ||
-        tweet.text.contains("www.instagram.com") ||
-        tweet.text.contains("insta.gram")
-    val name = "PicTweetCount"
-  }
 
-  case object HashtagTweetCount extends TwitterAccumulator {
-    val predicate: Tweet => Boolean =
-      tweet => tweet.text.contains("#")
-    val name = "HashtagTweetCount"
-  }
-  
-  val accumulators = List(TweetCount, EmojiTweetCount, URLTweetCount, PicTweetCount, HashtagTweetCount)
 
   object JSON {
     import io.circe._
@@ -65,18 +56,6 @@ object TwitterAccumulators {
 
 
   }
-
-
-  def passThru[A]: Pipe[IO, A, A] = stream => stream
-
-  def pipeConcatenationMonoid[A] = new Monoid[Pipe[IO, A, A]] {
-    def combine(pipe1: Pipe[IO, A, A], pipe2: Pipe[IO, A, A]): Pipe[IO, A, A] =
-      pipe1.andThen(pipe2)
-    def empty: Pipe[IO, A, A] = passThru[A]
-  }
-
-  val concatenatedAccumulatorPipe: Pipe[IO, Tweet, Tweet] =
-    Foldable[List].foldMap(accumulators)(_.accumulatorPipe)(pipeConcatenationMonoid[Tweet])
 
 }
 

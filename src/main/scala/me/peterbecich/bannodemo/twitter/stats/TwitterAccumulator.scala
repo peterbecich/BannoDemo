@@ -6,9 +6,31 @@ import cats.implicits._
 import cats.syntax.all._
 import com.danielasfregola.twitter4s.entities.Tweet
 import fs2.{Stream, Pipe}
+import fs2.async.mutable.Signal
+import fs2.async.immutable.{Signal => ISignal}
 import java.util.concurrent.atomic.AtomicLong
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 object TwitterAccumulator {
+
+  private def makeCountSignal: IO[Signal[IO, Long]] =
+    Signal.apply[IO, Long](0L)(IO.ioEffect, global)
+
+  def makeAccumulator(_name: String,
+    _predicate: Tweet => Boolean,
+    _total: Option[TwitterAccumulator] = None): IO[TwitterAccumulator] =
+    makeCountSignal.map { _countSignal =>
+      new TwitterAccumulator {
+        val name = _name
+        val predicate = _predicate
+        val countSignal = _countSignal
+        val ototal = _total
+      }
+    }
+
+
+
   object JSON {
     import io.circe._
     import io.circe.Encoder
@@ -24,38 +46,58 @@ object TwitterAccumulator {
 
     implicit val accumulatorPayloadEncoder: Encoder[AccumulatorPayload] = deriveEncoder
 
-    // def makeAccumulatorPayload: AccumulatorPayload
+    def makeAccumulatorPayload(accumulator: TwitterAccumulator):
+        IO[AccumulatorPayload] = ???
+      // for {
+      //   count <- accumulator.getCount
+      //   percentage <- accumulator.
+      // } yield AccumulatorPayload(accumulator.name, count, percentage)
+
 
   }
 
 }
+
+/*
+ Counts Tweets that satisfy a given predicate.
+ Gives percentage of those Tweets relative to all Tweets.
+ */
 
 abstract class TwitterAccumulator {
 
   val name: String
   val predicate: Tweet => Boolean
 
-  private val count: AtomicLong = new AtomicLong(0);
+  val countSignal: Signal[IO, Long]
 
-  def getCount: IO[Long] = IO(count.get())
+  val ototal: Option[TwitterAccumulator]
+
+  def getCount: IO[Long] = countSignal.get
+
+  lazy val description: Stream[IO, String] =
+    countSignal.continuous.map(i => name + ": " + i)
+
   def describe: IO[String] = getCount.map(i => name + ": " + i)
-  def increment: IO[Unit] = IO(count.incrementAndGet()).flatMap { n =>
-    if (n % 1000 != 0)
-      IO (())
-    else
-      describe.flatMap { s => IO ( println(s) ) }
+
+  def increment: IO[Unit] = countSignal
+    .modify(_+1)
+    .flatMap { _ => countSignal.get }
+    .flatMap { n =>
+      if (n % 1000 != 0)
+        IO (())
+      else
+        describe.flatMap { s => IO ( println(s) ) }
+    }.map(_ => ())
+
+  lazy val percentage: Stream[IO, Double] = ototal match {
+    case None => Stream.constant(1.0, 1)
+    case Some(total) => total
+        .countSignal
+        .continuous
+        .zip(countSignal.continuous)
+        .map { case (total, count) => count.toDouble / total }
   }
 
-  def getPercentage: IO[Double] = for {
-    tweetCount <- TwitterAccumulators.TweetCount.getCount
-    accCount <- getCount
-  } yield accCount.toDouble / tweetCount
-
-
-  // TODO do this in IO
-  // https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLong.html
-
-  // TODO make val?
   val accumulatorPipe: Pipe[IO, Tweet, Tweet] =
     (input: Stream[IO, Tweet]) => input.flatMap { tweet =>
       if (predicate(tweet)) {
