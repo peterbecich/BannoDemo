@@ -76,28 +76,40 @@ object TwitterAverages {
   
   import scala.collection.immutable.HashMap
 
+  // GADT skolem error
+  // def sequenceStreams[F[_],O](listStream: List[Stream[F,O]]): Stream[F, List[O]] =
+  //   listStream match {
+  //     case Nil => Stream.empty
+  //     case h::Nil => h.map(List(_))
+  //     case h::t => ???
+  //   }
+
+  def sequenceStreams(listStream: List[Stream[IO,TwitterAverage.JSON.AveragePayload]]):
+      Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
+    listStream match {
+      case Nil => Stream.empty
+      case h::Nil => h.map(List(_))
+      case h::t => h.zipWith(sequenceStreams(t))(_::_)
+    }
+  
   def averagesPayloadStream(averages: List[TwitterAverage]): Stream[IO, JSON.AveragesPayload] = {
     val averagePayloads: List[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
       averages.map(_.averagePayloadStream)
 
+    // val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
+    //   Traverse[List].sequence(averagePayloads).flatMap { ll =>
+    //     Stream.eval(IO(println("stream list payload: "+ll))).map { _ =>
+    //       ll
+    //     }
+    //   }
+
     val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
-      Traverse[List].sequence(averagePayloads).flatMap { ll =>
-        Stream.eval(IO(println("stream list payload: "+ll))).map { _ =>
-          ll
-        }
-      }
+      sequenceStreams(averagePayloads)
 
-    streamListPayload.map(JSON.makeAveragesPayload).flatMap { averages =>
-      Stream.eval(IO(println("averages payload: "+averages))).map { _ =>
-        averages}
-    }
+    // val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
+    //   averagePayloads(0).map(List(_))
 
-    // val ave = averages(0)
-    // val aves = ave.averagePayloadStream
-    // val m: Stream[IO, Map[String, TwitterAverage.JSON.AveragePayload]] =
-    //   aves.map { x => HashMap((x.name, x)) }
-
-    // m
+    streamListPayload.map(JSON.makeAveragesPayload)
   }
 
   val makeTwitterAverages: IO[(Pipe[IO, Tweet, Tweet], Stream[IO, JSON.AveragesPayload])] =
