@@ -26,7 +26,7 @@ dockerfile in docker := {
   val artifactTargetPath = s"/app/${artifact.name}"
 
   new Dockerfile {
-    from("java")
+    from("openjdk:8-jre")
     add(artifact, artifactTargetPath)
     copy(baseDirectory(_ / "BannoDemo-frontend" / "static").value, file("/srv/static"))
     // copy(baseDirectory(_ / "src" / "main" / "resources" / "emoji-data" ).value, file("/srv/emoji-data"))
