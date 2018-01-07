@@ -53,7 +53,7 @@ object TwitterAverage {
     count: Long = 0,
     ts: LocalDateTime
   ) extends CountAccumulator {
-    val duration = Duration.ofSeconds(1)
+    val duration = second
     def add(s: Long): SecondCountAccumulator =
       this.copy(sum+s, count+1, ts = LocalDateTime.now())
   }
@@ -62,7 +62,7 @@ object TwitterAverage {
     count: Long = 0,
     ts: LocalDateTime
   ) extends CountAccumulator {
-    val duration = Duration.ofMinutes(1)
+    val duration = minute
     def add(s: Long): MinuteCountAccumulator =
       this.copy(sum+s, count+1, ts = LocalDateTime.now())
   }
@@ -71,7 +71,7 @@ object TwitterAverage {
     count: Long = 0,
     ts: LocalDateTime
   ) extends CountAccumulator {
-    val duration = Duration.ofHours(1)
+    val duration = hour
     def add(s: Long): HourCountAccumulator =
       this.copy(sum+s, count+1, ts = LocalDateTime.now())
   }
@@ -265,12 +265,6 @@ abstract class TwitterAverage {
 
   private def priorSecondTimeTable: IO[TimeTable] =
     truncateTimeTable(second)
-    // timeTableSignal.get.map { timeTable =>
-    //   val zone = ZoneOffset.ofHours(0)
-    //   val now: LocalDateTime = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
-    //   val minusOneSecond: LocalDateTime = now.minus(1, ChronoUnit.SECONDS)
-    //   timeTable.filter((kv) => kv._1 == now)
-    // }
 
   private def priorMinuteTimeTable: IO[TimeTable] =
     truncateTimeTable(minute)
