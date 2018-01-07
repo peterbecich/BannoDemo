@@ -24,8 +24,13 @@ import scala.concurrent.duration._
 
 object TwitterAverage {
 
-  val minute: Long = 60
-  val hour: Long = minute*60
+  val calculationInterval = 1.second
+
+  // val minute: Long = 60
+  // val hour: Long = minute*60
+  val second: Duration = Duration.ofSeconds(1)
+  val minute: Duration = Duration.ofMinutes(1)
+  val hour: Duration = Duration.ofHours(1)
 
   // Time Table is a hashmap of the prior 3600 seconds
   type TimeTable = TrieMap[LocalDateTime, Long]
@@ -36,9 +41,10 @@ object TwitterAverage {
   trait CountAccumulator {
     val sum: Long
     val count: Long
-    val seconds: Long
-    def average: Double = sum * 1.0 / seconds
-    def add(s: Long, n: Long): CountAccumulator
+    val duration: Duration
+    lazy val seconds: Long = duration.get(ChronoUnit.SECONDS)
+    def average: Double = sum.toDouble / (count*seconds)
+    def add(s: Long): CountAccumulator
     val ts: LocalDateTime
   }
 
@@ -47,27 +53,27 @@ object TwitterAverage {
     count: Long = 0,
     ts: LocalDateTime
   ) extends CountAccumulator {
-    val seconds = 1
-    def add(s: Long, n: Long): SecondCountAccumulator =
-      this.copy(sum+s, count+n, ts = LocalDateTime.now())
+    val duration = Duration.ofSeconds(1)
+    def add(s: Long): SecondCountAccumulator =
+      this.copy(sum+s, count+1, ts = LocalDateTime.now())
   }
   case class MinuteCountAccumulator(
     sum: Long = 0,
     count: Long = 0,
     ts: LocalDateTime
   ) extends CountAccumulator {
-    val seconds = minute
-    def add(s: Long, n: Long): MinuteCountAccumulator =
-      this.copy(sum+s, count+n, ts = LocalDateTime.now())
+    val duration = Duration.ofMinutes(1)
+    def add(s: Long): MinuteCountAccumulator =
+      this.copy(sum+s, count+1, ts = LocalDateTime.now())
   }
   case class HourCountAccumulator(
     sum: Long = 0,
     count: Long = 0,
     ts: LocalDateTime
   ) extends CountAccumulator {
-    val seconds = hour
-    def add(s: Long, n: Long): HourCountAccumulator =
-      this.copy(sum+s, count+n, ts = LocalDateTime.now())
+    val duration = Duration.ofHours(1)
+    def add(s: Long): HourCountAccumulator =
+      this.copy(sum+s, count+1, ts = LocalDateTime.now())
   }
 
   object JSON {
@@ -102,35 +108,13 @@ object TwitterAverage {
         minuteCountAcc.average, minuteCountAcc.ts,
         hourCountAcc.average, hourCountAcc.ts
       )
-
-    // def makeTestPayload(
-    //   name: String,
-    //   secondCountAcc: SecondCountAccumulator
-    // ): AveragePayload =
-    //   AveragePayload(name,
-    //     secondCountAcc.average, secondCountAcc.ts,
-    //     secondCountAcc.average, secondCountAcc.ts,
-    //     secondCountAcc.average, secondCountAcc.ts
-    //   )
-    
-    // private def _makeAveragePayloadJson(averagePayload: AveragePayload): Json =
-    //   averagePayload.asJson
-
-    // def makeAveragePayloadJson(
-    //   name: String,
-    //   secondCountAcc: SecondCountAccumulator,
-    //   minuteCountAcc: MinuteCountAccumulator,
-    //   hourCountAcc: HourCountAccumulator
-    // ): Json =
-    //   _makeAveragePayloadJson(makeAveragePayload(name, secondCountAcc, minuteCountAcc, hourCountAcc))
-
-    
   }
 
   private def makeTimeTableSignal: IO[TimeTableSignal] =
     Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
 
-  def makeAverage(_name: String, _predicate: Tweet => Boolean): IO[TwitterAverage] = for {
+  def makeAverage(_name: String, _predicate: Tweet => Boolean):
+      IO[TwitterAverage] = for {
     _timeTableSignal <- makeTimeTableSignal
     _secondCountAccumulatorSignal <- Signal.apply {
       SecondCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
@@ -149,7 +133,7 @@ object TwitterAverage {
      }
   }
 
-  def _makeAverage(_name: String, _predicate: Tweet => Boolean):
+  private def _makeAverage(_name: String, _predicate: Tweet => Boolean):
       IO[(TwitterAverage, TimeTableSignal)] = for {
     _timeTableSignal <- makeTimeTableSignal
     _secondCountAccumulatorSignal <- Signal.apply {
@@ -234,18 +218,17 @@ abstract class TwitterAverage {
 
   // Remove timestamps from time table if they are beyond a certain age, in seconds.
   // This cleans the time table of old entries.
-  private def filterTimeThreshold(secondsThreshold: Long = hour): IO[Unit] =
+  private def filterTimeThreshold(threshold: Duration = hour): IO[Unit] =
     timeTableSignal.modify { timeTable =>
       // TODO investigate potential for lost data with concurrent calls to `modify` on Signal
       // TODO get time zones right
-      val zone = ZoneOffset.ofHours(0)
+      // val zone = ZoneOffset.ofHours(0)
       val now = LocalDateTime.now()
-      def diffUnderThreshold(ts1: LocalDateTime): Boolean = {
-        val diff = now.toEpochSecond(zone) - ts1.toEpochSecond(zone)
-        (diff) < secondsThreshold
-      }
-      val timeTable2 = timeTable.filter((kv) => diffUnderThreshold(kv._1))
-      timeTable2
+      val cutoff = now.minus(threshold)
+      // predicate determines if timestamp is younger than durationThreshold
+      def underThreshold(ts: LocalDateTime): Boolean =
+        ts.isAfter(cutoff)
+      timeTable.filter { kv => underThreshold(kv._1) }
     }.map(_ => ())
 
   private def incrementTimePipe: Pipe[IO, Tweet, Tweet] =
@@ -267,26 +250,30 @@ abstract class TwitterAverage {
     }
   }
 
-  private def truncateTimeTable(secondsThreshold: Long): IO[TimeTable] =
+  private def truncateTimeTable
+    (threshold: Duration, shift: Duration = Duration.ofSeconds(5)): IO[TimeTable] =
     timeTableSignal.get.map { timeTable =>
-      val zone = ZoneOffset.ofHours(0)
-      val now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
-      def diffUnderThreshold(ts1: LocalDateTime): Boolean = {
-        val diff = now.toEpochSecond(zone) - ts1.toEpochSecond(zone)
-        (diff) < secondsThreshold
-      }
-      timeTable.filter((kv) => diffUnderThreshold(kv._1))
+      // val zone = ZoneOffset.ofHours(0)
+      val now = LocalDateTime.now()
+      val upperCutoff = now.minus(shift)
+      val lowerCutoff = now.minus(threshold).minus(shift)
+      // predicate determines if timestamp is younger than durationThreshold
+      def underThreshold(ts: LocalDateTime): Boolean =
+        ts.isEqual(lowerCutoff) || (ts.isAfter(lowerCutoff) && ts.isBefore(upperCutoff))
+      timeTable.filter { kv => underThreshold(kv._1) }
     }
 
   private def priorSecondTimeTable: IO[TimeTable] =
-    timeTableSignal.get.map { timeTable =>
-      val zone = ZoneOffset.ofHours(0)
-      val now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
-      timeTable.filter((kv) => kv._1 == now)
-    }
+    truncateTimeTable(second)
+    // timeTableSignal.get.map { timeTable =>
+    //   val zone = ZoneOffset.ofHours(0)
+    //   val now: LocalDateTime = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS)
+    //   val minusOneSecond: LocalDateTime = now.minus(1, ChronoUnit.SECONDS)
+    //   timeTable.filter((kv) => kv._1 == now)
+    // }
 
   private def priorMinuteTimeTable: IO[TimeTable] =
-    truncateTimeTable(60)
+    truncateTimeTable(minute)
 
   private def priorHourTimeTable: IO[TimeTable] =
     truncateTimeTable(hour)
@@ -312,11 +299,11 @@ abstract class TwitterAverage {
   // calculates second averages
   private lazy val calculateSecondAverage: Stream[IO, Unit] =
     schedulerStream.flatMap { scheduler =>
-      scheduler.fixedRate(4.second)(IO.ioEffect, global).flatMap { _ =>
+      scheduler.fixedRate(calculationInterval)(IO.ioEffect, global).flatMap { _ =>
         Stream.eval(secondSum).flatMap { case (sum, count) =>
           Stream.eval {
             secondCountAccumulatorSignal.modify { acc =>
-              acc.add(sum, count)
+              acc.add(sum)
             }
           }
         }
@@ -326,11 +313,11 @@ abstract class TwitterAverage {
   // calculates minute averages
   private lazy val calculateMinuteAverage: Stream[IO, Unit] =
     schedulerStream.flatMap { scheduler =>
-      scheduler.fixedRate(4.second)(IO.ioEffect, global).flatMap { _ =>
+      scheduler.fixedRate(calculationInterval)(IO.ioEffect, global).flatMap { _ =>
         Stream.eval(minuteSum).flatMap { case (sum, count) =>
           Stream.eval {
             minuteCountAccumulatorSignal.modify { acc =>
-              acc.add(sum, count)
+              acc.add(sum)
             }
           }
         }
@@ -340,11 +327,11 @@ abstract class TwitterAverage {
   // calculates hourly averages
   private lazy val calculateHourlyAverage: Stream[IO, Unit] =
     schedulerStream.flatMap { scheduler =>
-      scheduler.fixedRate(4.second)(IO.ioEffect, global).flatMap { _ =>
+      scheduler.fixedRate(calculationInterval)(IO.ioEffect, global).flatMap { _ =>
         Stream.eval(hourSum).flatMap { case (sum, count) =>
           Stream.eval {
             hourCountAccumulatorSignal.modify { acc =>
-              acc.add(sum, count)
+              acc.add(sum)
             }
           }
         }
