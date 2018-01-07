@@ -36,8 +36,11 @@ object TwitterHistogram {
     Signal.apply((IndexedSeq.empty[K], TrieMap.empty[K, Long]))(IO.ioEffect, global)
 
   def makeTwitterHistogram[K : DerivedObjectEncoder]
-    (_name: String, _predicate: Tweet => K, _bins: Set[K]):
-      IO[TwitterHistogram[K]] = for { 
+    ( _name: String,
+      _predicate: Tweet => Option[K],
+      _bins: Set[K] = HashSet.empty[K],
+      _growBins: Boolean = false
+    ): IO[TwitterHistogram[K]] = for { 
     _histogramSignal <- makeHistogramSignal[K]
     val bins = (new HashSet()) ++ _bins
   } yield {
@@ -52,8 +55,9 @@ abstract class TwitterHistogram[K : io.circe.Encoder]
   (
     val name: String,
     val histogramSignal: HistogramSignal[K],
-    val predicate: Tweet => K,
-    val bins: HashSet[K]
+    val predicate: Tweet => Option[K],
+    val bins: HashSet[K] = HashSet.empty[K],
+    val growBins: Boolean = true
   )
   (implicit val __kEncoder: DerivedObjectEncoder[K]) {
 
@@ -97,16 +101,23 @@ abstract class TwitterHistogram[K : io.circe.Encoder]
   private def sortBins(bins: IndexedSeq[K], histogram: TrieMap[K, Long]): IndexedSeq[K] =
     bins.sortBy[Long]{ (k: K) => histogram.getOrElse(k, 0) }.reverse
 
-  private def incrementKey(tweet: Tweet): IO[Unit] = {
-    val key: K = predicate(tweet)
-    if(bins.contains(key)) {
+  private def incrementKey(tweet: Tweet): IO[Unit] = predicate(tweet) match {
+    case Some(k) if bins.contains(k) =>
       histogramSignal.modify { case (bins, histogram) =>
-        val count: Long = histogram.getOrElse(key, 0)
-        val _histogram: TrieMap[K, Long] = histogram += ((key, count+1))
+        val count: Long = histogram.getOrElse(k, 0)
+        val _histogram: TrieMap[K, Long] = histogram += ((k, count+1))
         val _bins = sortBins(bins, _histogram)
         (_bins, _histogram)
       }.map(_ => ())
-    } else IO (())
+    case Some(k) if growBins == false => IO(())
+    case Some(k) if growBins == true =>
+      histogramSignal.modify { case (bins, histogram) =>
+        val count: Long = histogram.getOrElse(k, 0)
+        val _histogram: TrieMap[K, Long] = histogram += ((k, count+1))
+        val _bins = sortBins(k +: bins, _histogram)
+        (_bins, _histogram)
+      }.map(_ => ())
+    case None => IO(())
   }
 
   private val incrementKeyPipe: Pipe[IO, Tweet, Tweet] =
