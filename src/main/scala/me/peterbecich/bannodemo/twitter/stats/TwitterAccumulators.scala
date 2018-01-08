@@ -18,12 +18,16 @@ import fs2.{Stream, Pipe}
 
 object TwitterAccumulators {
 
+  private def containsPic(tweet: Tweet): Boolean =
+    tweet.text.contains("pbs.twimg.com") ||
+      tweet.text.contains("abs.twimg.com")
+
   private lazy val makeAccumulators: IO[List[TwitterAccumulator]] =
     for {
       tweets <- TwitterAccumulator.makeAccumulator("TweetAccumulator", _ => true)
-      emojis <- TwitterAccumulator.makeAccumulator("EmojiAccumulator", _ => true, Some(tweets))
+      emojis <- TwitterAccumulator.makeAccumulator("EmojiAccumulator", tweet => true,Some(tweets))
       urls <- TwitterAccumulator.makeAccumulator("URLAccumulator", tweet => tweet.text.contains("http"), Some(tweets))
-      pics <- TwitterAccumulator.makeAccumulator("PicAccumulator", _ => true, Some(tweets))
+      pics <- TwitterAccumulator.makeAccumulator("PicAccumulator", containsPic, Some(tweets))
       hashtags <- TwitterAccumulator.makeAccumulator("HashtagAccumulator", tweet => tweet.text.contains("#"), Some(tweets))
     } yield List(tweets, emojis, urls, pics, hashtags)
 

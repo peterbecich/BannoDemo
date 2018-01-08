@@ -47,11 +47,18 @@ object TwitterAccumulator {
     implicit val accumulatorPayloadEncoder: Encoder[AccumulatorPayload] = deriveEncoder
 
     def makeAccumulatorPayload(accumulator: TwitterAccumulator):
-        IO[AccumulatorPayload] = 
-      for {
-        count <- accumulator.countSignal.get
-        // percentage <- accumulator.percentage.head
-      } yield AccumulatorPayload(accumulator.name, count, 1.0)
+        IO[AccumulatorPayload] =
+      accumulator.ototal match {
+        case None =>
+          for {
+            count <- accumulator.countSignal.get
+          } yield AccumulatorPayload(accumulator.name, count, 1.0)
+        case Some(totalAcc) =>
+          for {
+            count <- accumulator.countSignal.get
+            total <- totalAcc.countSignal.get
+          } yield AccumulatorPayload(accumulator.name, count, count.toDouble / total)
+      }
 
 
   }
