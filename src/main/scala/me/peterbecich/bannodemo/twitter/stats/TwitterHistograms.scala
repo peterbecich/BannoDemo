@@ -22,6 +22,6 @@ import scala.concurrent.duration._
 
 object TwitterHistograms {
 
-
+  // private lazy val  
 
 }
