@@ -26,13 +26,16 @@ object TwitterHistograms {
   //   TwitterHistogram.makeTwitterHistogramRegex("URL", raw"http.*?[com|org]".r)
 
   private lazy val urlHistogram: IO[TwitterHistogram] =
-    TwitterHistogram.makeTwitterHistogramRegex("URL", raw"http\S+\.(com|org|net|co|c)\s".r)
+    TwitterHistogram.makeTwitterHistogramRegex("URL", raw"http\S+\.(com|org|net|co|c)?".r)
 
+  private lazy val urlEndpointHistogram: IO[TwitterHistogram] =
+    TwitterHistogram.makeTwitterHistogramRegex("URL Endpoint", raw"http\S+\.(com|org|net|co|c)/\S+".r)
+  
   private lazy val hashtagHistogram: IO[TwitterHistogram] =
     TwitterHistogram.makeTwitterHistogramRegex("Hashtag", raw"""\#\S+""".r)
 
   private lazy val makeHistograms: IO[List[TwitterHistogram]]=
-    Traverse[List].sequence(List(urlHistogram, hashtagHistogram))
+    Traverse[List].sequence(List(urlHistogram, urlEndpointHistogram, hashtagHistogram))
 
 
   object JSON {

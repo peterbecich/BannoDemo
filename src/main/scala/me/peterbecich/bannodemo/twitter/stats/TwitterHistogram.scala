@@ -38,7 +38,9 @@ object RegexExample {
   // https://stackoverflow.com/a/1919995/1007926
   val http: Regex = raw"http.*?com".r
 
-  val tweet: String = """aeuahsouthasoue http://news.google.com aseudasoehud https://yahoo.com sahxksarodis"""
+  val short: String = """https://t.co/SRgFJLuoTU"""
+
+  val tweet: String = """aeuahsouthasoue http://news.google.com/foo aseudasoehud https://yahoo.com sahxksarodis"""
 
   val tweets: List[String] = List(
     "hello http://www.google.com",
