@@ -32,6 +32,7 @@ dockerfile in docker := {
     add(artifact, artifactTargetPath)
     copy(baseDirectory(_ / "BannoDemo-frontend" / "static").value, file("/srv/static"))
     // copy(baseDirectory(_ / "src" / "main" / "resources" / "emoji-data" ).value, file("/srv/emoji-data"))
+    copy(baseDirectory(_ / "src" / "main" / "resources" / "emojis" ).value, file("/srv/emojis"))
     entryPoint("java", "-jar", artifactTargetPath)
   }
 }
@@ -55,6 +56,7 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-blaze-client"          % Http4sVersion,
       "io.circe" % "circe-generic_2.12" % circe,
       "io.circe" % "circe-literal_2.12" % circe,
+      "io.circe" % "circe-parser_2.12" % circe,
       "co.fs2" %% "fs2-core" % fs2,
       "co.fs2" %% "fs2-io" % fs2,
       "org.typelevel" %% "cats-core" % "1.0.0",
