@@ -38,7 +38,7 @@ object RegexExample {
   // https://stackoverflow.com/a/1919995/1007926
   val http: Regex = raw"http.*?com".r
 
-  val tweet: String = "aeuahsouthasoue http://news.google.com aseudasoehud https://yahoo.com sahxksarodis"
+  val tweet: String = """aeuahsouthasoue http://news.google.com aseudasoehud https://yahoo.com sahxksarodis"""
 
   val tweets: List[String] = List(
     "hello http://www.google.com",
@@ -50,6 +50,9 @@ object RegexExample {
     "satheusaotheu https://en.wikipedia.org astudaonuedsaob"
   )
 
+  val hashtag: Regex = raw"""\#.+\s?""".r
+
+  val hashtags: String = """sauehsanotuh #foo #bar asoeuthaoseuh #baz aseutha"""
   // Regex => Set[K]
 
   // def makeKeys(tweet: Tweet, regex: Regex): Set[String] =
@@ -116,7 +119,7 @@ object TwitterHistogram {
     ( _name: String,
       _regex: Regex,
       _search: Function1[Tweet, String] = _.text,
-      _bins: Set[String] = HashSet.empty,
+      _bins: IndexedSeq[String] = IndexedSeq(),
       _growBins: Boolean = true
     ): IO[TwitterHistogram] = for { 
     _histogramSignal <- makeHistogramSignal
@@ -139,8 +142,8 @@ abstract class TwitterHistogram
   ){
 
 
-  private def getKeys(tweet: Tweet): Set[String] =
-    regex.findAllIn(search(tweet)).toSet
+  private def getKeys(tweet: Tweet): IndexedSeq[String] =
+    regex.findAllIn(search(tweet)).toIndexedSeq
 
   private def sortBins
     (bins: IndexedSeq[String], histogram: TrieMap[String, Long]): IndexedSeq[String] =
@@ -151,20 +154,18 @@ abstract class TwitterHistogram
 
   lazy val histogramPayloadStream: Stream[IO, JSON.HistogramPayload] =
     histogramSignal.discrete.map { case (bins, histogram) =>
-      val topBins = bins.take(n)
+      val topBins = bins.take(n).sorted.reverse
       val topHistogram = histogram.filter { case (key, _) =>
         topBins.contains(key)
       }.toMap
       JSON.makeHistogramPayload(name, topHistogram)
     }
 
-  import cats.instances.set.catsStdInstancesForSet
-
-  lazy val commutativeIO: CommutativeApplicative[IO] =
-    cats.CommutativeApplicative.apply[IO](commutativeIO)
+  // lazy val commutativeIO: CommutativeApplicative[IO] =
+  //   cats.CommutativeApplicative.apply[IO](commutativeIO)
 
   private def incrementKey(tweet: Tweet): IO[Unit] =
-    UnorderedTraverse[Set].unorderedTraverse(getKeys(tweet)){ key =>
+    Traverse[List].traverse_(getKeys(tweet).toList){ key =>
       histogramSignal.modify { case (bins, histogram) =>
         if(bins.contains(key)) {
           val count: Long = histogram.getOrElse(key, 0)
@@ -178,8 +179,8 @@ abstract class TwitterHistogram
         } else {
           (bins, histogram)
         }
-      }.map(_ => (()))
-    }(commutativeIO).map(_ => (()))
+      }//.map(_ => (()))
+    }//.map(_ => (()))
 
   private val incrementKeyPipe: Pipe[IO, Tweet, Tweet] =
     (tweetInput: Stream[IO, Tweet]) =>

@@ -61,7 +61,7 @@ object TwitterAverages {
   }
 
 
-  private def makeAverages: IO[List[TwitterAverage]] =
+  private lazy val makeAverages: IO[List[TwitterAverage]] =
     Traverse[List].sequence(List(tweetAverage, emojiAverage, hashtagAverage))
 
   private def passThru[A]: Pipe[IO, A, A] = stream => stream

@@ -20,6 +20,7 @@ import scala.concurrent.duration._
 import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators
 import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators._
 import me.peterbecich.bannodemo.twitter.stats.TwitterAverages
+import me.peterbecich.bannodemo.twitter.stats.TwitterHistograms
 
 import me.peterbecich.bannodemo.HelloWorldServer.serverStart
 
@@ -44,6 +45,7 @@ object TwitterStats {
 
     import stats.TwitterAverages.JSON._
     import stats.TwitterAccumulators.JSON._
+    import stats.TwitterHistograms.JSON._
 
     val serverStart = ZonedDateTime.now()
 
@@ -51,27 +53,31 @@ object TwitterStats {
       serverStartTimestamp: ZonedDateTime,
       statsTimestamp: ZonedDateTime,
       averages: AveragesPayload,
-      accumulators: AccumulatorsPayload
+      accumulators: AccumulatorsPayload,
+      histograms: HistogramsPayload
     )
 
     implicit val statsPayloadEncoder: Encoder[StatsPayload] = deriveEncoder
 
     private def statsPayloadStream(
       averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload],
-      accumulatorsPayloadStream: Stream[IO, stats.TwitterAccumulators.JSON.AccumulatorsPayload]
+      accumulatorsPayloadStream: Stream[IO, stats.TwitterAccumulators.JSON.AccumulatorsPayload],
+      histogramsPayloadStream: Stream[IO, stats.TwitterHistograms.JSON.HistogramsPayload]
     ): Stream[IO, StatsPayload] =
       averagesPayloadStream
         .zip(accumulatorsPayloadStream)
+        .zip(histogramsPayloadStream)
         .zip(Stream.repeatEval(IO(ZonedDateTime.now())))
-        .map { case ((averages, accumulators), now) =>
-          StatsPayload(serverStart, now, averages, accumulators)
+        .map { case (((averages, accumulators), histograms), now) =>
+          StatsPayload(serverStart, now, averages, accumulators, histograms)
         }
 
     def statsPayloadJsonStream(
       averagesPayloadStream: Stream[IO, stats.TwitterAverages.JSON.AveragesPayload],
-      accumulatorsPayloadStream: Stream[IO, stats.TwitterAccumulators.JSON.AccumulatorsPayload]
+      accumulatorsPayloadStream: Stream[IO, stats.TwitterAccumulators.JSON.AccumulatorsPayload],
+      histogramsPayloadStream: Stream[IO, stats.TwitterHistograms.JSON.HistogramsPayload]
     ): Stream[IO, Json] =
-      statsPayloadStream(averagesPayloadStream, accumulatorsPayloadStream)
+      statsPayloadStream(averagesPayloadStream, accumulatorsPayloadStream, histogramsPayloadStream)
         .map(_.asJson)
 
   }
@@ -86,15 +92,20 @@ object TwitterStats {
       _ <- IO(println("make averages pipeline"))
       averagesTup <- TwitterAverages.makeTwitterAverages
       (averagePipe, averagesPayloadStream) = averagesTup
+      histogramsTup <- TwitterHistograms.makeTwitterHistograms
+      (histogramPipe, histogramsPayloadStream) = histogramsTup
       _ <- IO(println("begin"))
     } yield {
       twitterStream
         .through(accumulatorPipe)
         .through(averagePipe)
+        .through(histogramPipe)
         .drain
         .run
         .runAsync { case _ => IO(()) }
-        .flatMap { _ => IO(JSON.statsPayloadJsonStream(averagesPayloadStream, accumulatorsPayloadStream)) }
+        .flatMap { _ =>
+          IO(JSON.statsPayloadJsonStream(averagesPayloadStream, accumulatorsPayloadStream, histogramsPayloadStream))
+        }
     }
   }.flatten
 
