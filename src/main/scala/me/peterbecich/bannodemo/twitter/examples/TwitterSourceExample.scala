@@ -27,7 +27,7 @@ object TwitterSourceExample {
 
   val printTwitter: IO[Unit] = TwitterSource.createTwitterStream.flatMap { twitterStream =>
     twitterStream
-      .map(tweet => tweet.user.map(_.name).getOrElse("nobody"))
+      .map(_.text)
       .intersperse("\n")
       // .through(text.lines)
       .through(text.utf8Encode)
@@ -35,11 +35,11 @@ object TwitterSourceExample {
       .drain.run
   }
 
-  // def main(args: Array[String]): Unit = {
-  //   println("twitter queue example, with FS2")
+  def main(args: Array[String]): Unit = {
+    println("twitter source example, with FS2")
 
-  //   printTwitter.unsafeRunSync()
-  // }
+    printTwitter.unsafeRunSync()
+  }
 
 
 }

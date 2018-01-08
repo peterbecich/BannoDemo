@@ -108,4 +108,39 @@ object EmojisExample extends App {
     }
   }
 
+  val mahjong = "\u1F004"
+
+  val tweets = "🎶 👂 🤑 🎒 💛 😂 👏 🐼 📸 💕"
+
+  println("tweets")
+  println(tweets)
+
+  println("mahjong")
+  println(mahjong.toString)
+
+  // https://stackoverflow.com/questions/24968645/how-to-get-unicode-of-smiley-in-scala
+  val smiley = "\u263a"
+  println(smiley)
+
+  val smiley2 = "☺"
+  println("another smiley")
+  println(smiley2)
+
+  println("smiley equality")
+  println(smiley==smiley2)
+
+  println("filing cabinet")
+
+  val filingCabinet = "\ufe0f"
+  println(filingCabinet)
+
+  println("smiley - filing cabinet equality check")
+  println(smiley==filingCabinet)
+
+  
+
+  // BannoDemo/src/main/scala/me/peterbecich/bannodemo/twitter/stats/
+
+
+
 }
