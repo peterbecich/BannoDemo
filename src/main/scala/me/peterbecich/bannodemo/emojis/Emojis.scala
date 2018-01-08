@@ -65,6 +65,18 @@ object Emojis {
 
   type EmojisCollection = List[Emoji]
 
+  import scala.io.Source
+  import io.circe.parser.decode
+
+  // 
+  lazy val emojis: Either[Error, EmojisCollection] = {
+    val emojisPath = "/srv/emojis/emoji_pretty.json"
+    val emojisText = Source.fromFile(emojisPath).getLines.mkString
+
+    decode[EmojisCollection](emojisText)
+  }
+
+
 }
 
 object EmojisExample extends App {

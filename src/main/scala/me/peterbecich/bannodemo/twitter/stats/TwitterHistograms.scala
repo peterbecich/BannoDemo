@@ -34,8 +34,34 @@ object TwitterHistograms {
   private lazy val hashtagHistogram: IO[TwitterHistogram] =
     TwitterHistogram.makeTwitterHistogramRegex("Hashtag", raw"""\#\S+""".r)
 
+  import me.peterbecich.bannodemo.emojis.Emojis._
+
+  private lazy val emojisHistogram: IO[TwitterHistogram] =
+    emojis match {
+      case Left(error) => {
+        println("error retrieving emojis from disk")
+        TwitterHistogram.makeTwitterHistogramRegex("Emojis", raw"In the absence of a failing Regex, this will have to suffice".r)
+      }
+      case Right(emojis) => {
+        val bins = emojis.map(_.unified).toIndexedSeq
+        //         "unified": "1F1E8-1F1F4",
+        val regex = raw"""\w\w\w\w\w-\w\w\w\w\w""".r
+
+        println("some decoded emojis:")
+        emojis.take(16).foreach(println(_))
+        
+        TwitterHistogram.makeTwitterHistogramRegex("Emojis", regex, _bins = bins, _growBins = false)
+
+      }
+
+
+  }
+
+
   private lazy val makeHistograms: IO[List[TwitterHistogram]]=
-    Traverse[List].sequence(List(urlHistogram, urlEndpointHistogram, hashtagHistogram))
+    Traverse[List].sequence(List(urlHistogram, urlEndpointHistogram, hashtagHistogram, emojisHistogram))
+
+
 
 
   object JSON {
