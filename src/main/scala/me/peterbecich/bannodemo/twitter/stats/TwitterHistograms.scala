@@ -11,6 +11,7 @@ import fs2.async.immutable.{Signal => ISignal}
 
 import com.danielasfregola.twitter4s.entities.Tweet
 
+import scala.collection.immutable.IndexedSeq
 import scala.collection.concurrent.TrieMap
 
 import java.time.{LocalDateTime, ZoneOffset, Duration}
@@ -40,17 +41,20 @@ object TwitterHistograms {
     emojis match {
       case Left(error) => {
         println("error retrieving emojis from disk")
-        TwitterHistogram.makeTwitterHistogramRegex("Emojis", raw"In the absence of a failing Regex, this will have to suffice".r)
+        TwitterHistogram.makeTwitterHistogram("Emojis", (_: Tweet) => Seq(), _bins = IndexedSeq.empty[String], _growBins = false)
       }
       case Right(emojis) => {
-        val bins = emojis.map(_.unified).toIndexedSeq
-        //         "unified": "1F1E8-1F1F4",
-        val regex = raw"""\w\w\w\w\w-\w\w\w\w\w""".r
-
         println("some decoded emojis:")
-        emojis.take(16).foreach(println(_))
+        emojis.take(16).map(_.unified).foreach(println(_))
         
-        TwitterHistogram.makeTwitterHistogramRegex("Emojis", regex, _bins = bins, _growBins = false)
+        val bins = emojis.map(emoji => "q").toIndexedSeq
+        //         "unified": "1F1E8-1F1F4",
+        // val regex = raw"""\w\w\w\w\w-\w\w\w\w\w""".r
+
+
+        def keys(tweet: Tweet) = bins.filter(bin => tweet.text.contains(bin))
+        
+        TwitterHistogram.makeTwitterHistogram("Emojis", keys, _bins = bins, _growBins = false)
 
       }
 

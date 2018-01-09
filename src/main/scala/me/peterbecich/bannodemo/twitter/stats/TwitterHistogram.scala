@@ -70,8 +70,10 @@ object TwitterHistogram {
   type Histogram = (IndexedSeq[String], TrieMap[String, Long])
   type HistogramSignal = Signal[IO, Histogram]
 
-  private def makeHistogramSignal: IO[HistogramSignal] =
-    Signal.apply((IndexedSeq.empty[String], TrieMap.empty[String, Long]))(IO.ioEffect, global)
+  private def makeHistogramSignal
+    (bins: IndexedSeq[String] = IndexedSeq.empty[String]):
+      IO[HistogramSignal] =
+    Signal.apply((bins, TrieMap.empty[String, Long]))(IO.ioEffect, global)
 
   object JSON {
     import io.circe._
@@ -105,17 +107,16 @@ object TwitterHistogram {
 
   }
 
-  // def makeTwitterHistogram
-  //   ( _name: String,
-  //     _predicate: Tweet => Option[String],
-  //     _bins: Set[String] = HashSet.empty[String],
-  //     _growBins: Boolean = true
-  //   ): IO[TwitterHistogram] = for { 
-  //   _histogramSignal <- makeHistogramSignal
-  //   val bins = (new HashSet()) ++ _bins
-  // } yield {
-  //   new TwitterHistogram(_name, _histogramSignal, _predicate, bins) {}
-  // }
+  def makeTwitterHistogram
+    ( _name: String,
+      _getKeys: Function1[Tweet, Seq[String]],
+      _bins: IndexedSeq[String] = IndexedSeq.empty[String],
+      _growBins: Boolean = true
+    ): IO[TwitterHistogram] = for { 
+    _histogramSignal <- makeHistogramSignal(_bins)
+  } yield {
+    new PredicateTwitterHistogram(_name, _histogramSignal, _getKeys) {}
+  }
 
   def makeTwitterHistogramRegex
     ( _name: String,
@@ -124,32 +125,19 @@ object TwitterHistogram {
       _bins: IndexedSeq[String] = IndexedSeq(),
       _growBins: Boolean = true
     ): IO[TwitterHistogram] = for { 
-    _histogramSignal <- makeHistogramSignal
+    _histogramSignal <- makeHistogramSignal(_bins)
   } yield {
-    new TwitterHistogram(_name, _regex, _histogramSignal, _search, _growBins) {}
+    RegexTwitterHistogram(_name, _regex, _histogramSignal, _search, _growBins)
   }
   
 }
 
 import TwitterHistogram._
 
-
-abstract class TwitterHistogram
-  (
-    val name: String,
-    val regex: Regex,
-    val histogramSignal: HistogramSignal,
-    val search: Function1[Tweet, String] = _.text,
-    val growBins: Boolean = true
-  ){
-
-
-  private def getKeys(tweet: Tweet): IndexedSeq[String] =
-    regex.findAllIn(search(tweet)).toIndexedSeq
-
-  private def sortBins
-    (bins: IndexedSeq[String], histogram: TrieMap[String, Long]): IndexedSeq[String] =
-    bins.sortBy[Long]{ (k: String) => histogram.getOrElse(k, 0) }.reverse
+trait TwitterHistogram {
+  val name: String
+  val histogramSignal: HistogramSignal
+  val growBins: Boolean
 
   // take top from histogram
   val n = 32
@@ -163,10 +151,33 @@ abstract class TwitterHistogram
       JSON.makeHistogramPayload(name, topHistogram)
     }
 
-  // lazy val commutativeIO: CommutativeApplicative[IO] =
-  //   cats.CommutativeApplicative.apply[IO](commutativeIO)
+  def incrementKey(tweet: Tweet): IO[Unit]
 
-  private def incrementKey(tweet: Tweet): IO[Unit] =
+  private val incrementKeyPipe: Pipe[IO, Tweet, Tweet] =
+    (tweetInput: Stream[IO, Tweet]) =>
+  tweetInput.flatMap { tweet =>
+    Stream.eval(incrementKey(tweet)).flatMap { _ =>
+      Stream.emit(tweet)
+    }
+  }
+
+  val histogramPipe: Pipe[IO, Tweet, Tweet] = incrementKeyPipe
+
+}
+
+
+case class PredicateTwitterHistogram(
+    name: String,
+    histogramSignal: HistogramSignal,
+    getKeys: Function1[Tweet, Seq[String]],
+    growBins: Boolean = true
+  ) extends TwitterHistogram {
+
+  private def sortBins
+    (bins: IndexedSeq[String], histogram: TrieMap[String, Long]): IndexedSeq[String] =
+    bins.sortBy[Long]{ (k: String) => histogram.getOrElse(k, 0) }.reverse
+
+  def incrementKey(tweet: Tweet): IO[Unit] =
     Traverse[List].traverse_(getKeys(tweet).toList){ key =>
       histogramSignal.modify { case (bins, histogram) =>
         if(bins.contains(key)) {
@@ -184,14 +195,41 @@ abstract class TwitterHistogram
       }//.map(_ => (()))
     }//.map(_ => (()))
 
-  private val incrementKeyPipe: Pipe[IO, Tweet, Tweet] =
-    (tweetInput: Stream[IO, Tweet]) =>
-    tweetInput.flatMap { tweet =>
-      Stream.eval(incrementKey(tweet)).flatMap { _ =>
-        Stream.emit(tweet)
-      }
-    }
+}
 
-  val histogramPipe: Pipe[IO, Tweet, Tweet] = incrementKeyPipe
+
+case class RegexTwitterHistogram(
+    name: String,
+    regex: Regex,
+    histogramSignal: HistogramSignal,
+    search: Function1[Tweet, String] = _.text,
+    growBins: Boolean = true
+  ) extends TwitterHistogram {
+
+
+  private def getKeys(tweet: Tweet): IndexedSeq[String] =
+    regex.findAllIn(search(tweet)).toIndexedSeq
+
+  private def sortBins
+    (bins: IndexedSeq[String], histogram: TrieMap[String, Long]): IndexedSeq[String] =
+    bins.sortBy[Long]{ (k: String) => histogram.getOrElse(k, 0) }.reverse
+
+  def incrementKey(tweet: Tweet): IO[Unit] =
+    Traverse[List].traverse_(getKeys(tweet).toList){ key =>
+      histogramSignal.modify { case (bins, histogram) =>
+        if(bins.contains(key)) {
+          val count: Long = histogram.getOrElse(key, 0)
+          val _histogram: TrieMap[String, Long] = histogram += ((key, count+1))
+          val _bins = sortBins(bins, _histogram)
+          (_bins, _histogram)
+        } else if (bins.contains(key) == false && growBins == true) {
+          val _histogram: TrieMap[String, Long] = histogram += ((key, 1))
+          val _bins = sortBins(key +: bins, _histogram)
+          (_bins, _histogram)
+        } else {
+          (bins, histogram)
+        }
+      }//.map(_ => (()))
+    }//.map(_ => (()))
 
 }
