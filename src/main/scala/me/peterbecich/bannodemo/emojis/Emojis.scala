@@ -1,5 +1,9 @@
 package me.peterbecich.bannodemo.emojis
 
+import cats._
+import cats.implicits._
+import cats.syntax.all._
+
 import io.circe._
 import io.circe.Encoder
 import io.circe.syntax._
@@ -35,13 +39,13 @@ object Emojis {
   // )
 
   case class Emoji(
-    // name: String,
+    name: Option[String],
     unified: String,
-    // non_qualified: String,
-    // docomo: String,
-    // au: String,
-    // softbank: String,
-    // google: String,
+    non_qualified: Option[String],
+    docomo: Option[String],
+    au: Option[String],
+    softbank: Option[String],
+    google: Option[String],
     image: String,
     // sheet_x: String,
     // sheet_y: String,
@@ -60,11 +64,14 @@ object Emojis {
     // has_img_messenger: String
   ) {
 
+    lazy val points: List[String] = unified.split("-").toList
+
     // https://stackoverflow.com/questions/10763730/hex-string-to-int-short-and-long-in-scala
     def getEmojiInt(unified: String): Option[Int] =
       scala.util.Try(Integer.parseInt(unified, 16)).toOption
 
-    lazy val emojiInt: Option[Int] = getEmojiInt(unified)
+    lazy val emojiInt: Option[Int] = points.headOption.flatMap(getEmojiInt)
+    lazy val emojiInts: Option[List[Int]] = Traverse[List].sequence(points.map(getEmojiInt))
   }
 
   
@@ -83,6 +90,15 @@ object Emojis {
 
     decode[EmojisCollection](emojisText)
   }
+
+  def tweetStringToEmojiInts(s: String): Option[List[Int]] = {
+    val ints: List[Int] = s.toCharArray().map(_.toInt).toList
+    // val opHead: Option[Int] = ints.headOption.map(_ | 0x10000)
+    // val tail = ints.tail
+    // opHead.map(head => head::tail)
+    Some(ints)
+  }
+
 
 
 }
@@ -112,124 +128,183 @@ object EmojisExample extends App {
     case Left(err) => println(err)
     case Right(decodedEmojis) => {
       println("some decoded emojis:")
-      decodedEmojis.slice(512,560).foreach(emoji => println(emoji.unified + "  " + emoji.emojiInt.map(_.toHexString)))
+      decodedEmojis.slice(512,560).foreach { emoji =>
+        println(emoji.name + "  " + emoji.unified + "  " + emoji.emojiInts.map(_.map(_.toHexString)))
+      }
     }
   }
 
-  val mahjong = '\u1F00'.toString
+  println("------------------")
 
-  println("mahjong:")
-  println(mahjong)
+  // https://stackoverflow.com/a/25977288/1007926
 
-  val tweets = "🎶 👂 🤑 🎒 💛 😂 👏 🐼 📸 💕"
+  import java.nio.charset.Charset
+  import java.nio.charset.CodingErrorAction
 
-  println(tweets)
+  // https://stackoverflow.com/a/25977288/1007926
 
-  // https://stackoverflow.com/questions/236097/finding-the-unicode-codepoint-of-a-character-in-gnu-emacs
-  val music = "aaa🎶zzz"
-  val music2 = "🎶"
+  // val decoder = Charset.forName("UTF-16").newDecoder()
+
+
+  def toSource(inputStream: java.io.InputStream): scala.io.BufferedSource = {
+    println("to source")
+    import java.nio.charset.Charset
+    import java.nio.charset.CodingErrorAction
+    val decoder = Charset.forName("UTF-16").newDecoder()
+    decoder.onMalformedInput(CodingErrorAction.IGNORE)
+    scala.io.Source.fromInputStream(inputStream)(decoder)
+  }
+
   
-  // code point in charset: 0x1F3B6
+  val exampleEmojisPath = "src/main/resources/emojis/exampleEmoji.txt"
 
+  // https://docs.oracle.com/javase/8/docs/api/java/nio/charset/Charset.html
+  // https://docs.oracle.com/javase/8/docs/api/java/io/InputStream.html
 
+  // val exampleEmojisText: List[String] = Source.fromFile(exampleEmojisPath).getLines.toList
+  val emojisStream = new java.io.FileInputStream(exampleEmojisPath)
 
-  // {
-  //     "name": "MULTIPLE MUSICAL NOTES",
-  //     "unified": "1F3B6",
-  //     "non_qualified": null,
-  //     "docomo": "E6FF",
-  //     "au": "E505",
-  //     "softbank": "E326",
-  //     "google": "FE814",
-  //     "image": "1f3b6.png",
-  //     "sheet_x": 9,
-  //     "sheet_y": 16,
-  //     "short_name": "notes",
-  //     "short_names": [
-  //         "notes"
-  //     ],
+  val emojisBufferedSource = toSource(emojisStream)
+
+  val exampleEmojisText = emojisBufferedSource.getLines.toList
+
+  exampleEmojisText.foreach(println(_))
+
+  println("-----")
   
-  println("musical note:")
-  println(music)
-  
-  // val musicChars = music.map(_.toInt.toHexString)
-  // println("music chars:")
-  // println(musicChars)
+  exampleEmojisText.foreach(s => println(tweetStringToEmojiInts(s).map(_.map(_.toHexString))))
 
-  // val musicChar = 
+  println("-----")
 
-  val example = "1f3ec"
-  println("example")
-  println(example)
-  println("\\u"+example)
-
-  // https://docs.oracle.com/javase/8/docs/api/?java/lang/Integer.html
-  // https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html#valueOf-java.lang.String-int-
-
-  val example2 = "0x1f3ec"
-  // val example2 = "0xfffff"
-  println(example2)
-
-  // val exampleInt: Integer = Integer.valueOf(example2, 4)
-  // val exampleInt: Integer = Integer.getInteger(example2, 4)
-  val exampleInt: Integer = Integer.decode(example2)
-  println(exampleInt)
-  println("example int")
-  println(exampleInt.toInt.toHexString)
-
-  // println("music char:")
-  // println(musicChar.toString)
-
-  // println("music hex: ")
-  // val musicHex = musicChar.toHexString
-  // println(musicHex)
-
-  println("a int")
-  // val aInt = Integer.parseInt("a", 16)
-  // println(aInt)
-  println('a'.toInt.toHexString)
-
-  // https://stackoverflow.com/questions/28738342/convert-special-characters-to-unicode-escape-characters-scala
-
-  println("music int")
-  // val musicInt = Integer.parseInt(music2, 8)
-  // val musicInt = Integer.toHexString(music2 | 0x10000).subString(1)
-
-  // def mask(c: Char): Char = c | 0x10000
-  // val musicInt = Integer.toHexString(music2.map(mask).subString(1))
-  // println(musicInt)
-
-  // println(musicInt.toHexString)
-
-
-  println("tweets")
-  println(tweets)
-
-  println("mahjong")
-  println(mahjong.toString)
+  // https://stackoverflow.com/questions/5585919/creating-unicode-character-from-its-number
 
   // https://stackoverflow.com/questions/24968645/how-to-get-unicode-of-smiley-in-scala
-  val smiley = "\u263a"
-  println(smiley)
+  // val tongue = "\ud83d\ude03"
+  // println("emoji with two code points")
+  // println(tongue)
 
-  val smiley2 = "☺"
-  println("another smiley")
-  println(smiley2)
+  // // val desert = ''
 
-  println("smiley equality")
-  println(smiley==smiley2)
+  // val office = "office building emoji 🏢"
 
-  println("filing cabinet")
+  // println(office)
 
-  val filingCabinet = "\ufe0f"
-  println(filingCabinet)
+  // val mahjong = '\u1F00'.toString
 
-  println("smiley - filing cabinet equality check")
-  println(smiley==filingCabinet)
+  // println("mahjong:")
+  // println(mahjong)
+
+  // val tweets = "🎶 👂 🤑 🎒 💛 😂 👏 🐼 📸 💕"
+
+  // // https://stackoverflow.com/questions/2220366/get-unicode-value-of-a-character
+
+  // println(tweets)
+
+  // // https://stackoverflow.com/questions/236097/finding-the-unicode-codepoint-of-a-character-in-gnu-emacs
+  // val music = "aaa🎶zzz"
+  // val music2 = "🎶"
+  
+  // // code point in charset: 0x1F3B6
+
+
+
+  // // {
+  // //     "name": "MULTIPLE MUSICAL NOTES",
+  // //     "unified": "1F3B6",
+  // //     "non_qualified": null,
+  // //     "docomo": "E6FF",
+  // //     "au": "E505",
+  // //     "softbank": "E326",
+  // //     "google": "FE814",
+  // //     "image": "1f3b6.png",
+  // //     "sheet_x": 9,
+  // //     "sheet_y": 16,
+  // //     "short_name": "notes",
+  // //     "short_names": [
+  // //         "notes"
+  // //     ],
+  
+  // println("musical note:")
+  // println(music)
+  
+  // // val musicChars = music.map(_.toInt.toHexString)
+  // // println("music chars:")
+  // // println(musicChars)
+
+  // // val musicChar = 
+
+  // val example = "1f3ec"
+  // println("example")
+  // println(example)
+  // println("\\u"+example)
+
+  // // https://docs.oracle.com/javase/8/docs/api/?java/lang/Integer.html
+  // // https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html#valueOf-java.lang.String-int-
+
+  // val example2 = "0x1f3ec"
+  // // val example2 = "0xfffff"
+  // println(example2)
+
+  // // val exampleInt: Integer = Integer.valueOf(example2, 4)
+  // // val exampleInt: Integer = Integer.getInteger(example2, 4)
+  // val exampleInt: Integer = Integer.decode(example2)
+  // println(exampleInt)
+  // println("example int")
+  // println(exampleInt.toInt.toHexString)
+
+  // // println("music char:")
+  // // println(musicChar.toString)
+
+  // // println("music hex: ")
+  // // val musicHex = musicChar.toHexString
+  // // println(musicHex)
+
+  // println("a int")
+  // // val aInt = Integer.parseInt("a", 16)
+  // // println(aInt)
+  // println('a'.toInt.toHexString)
+
+  // // https://stackoverflow.com/questions/28738342/convert-special-characters-to-unicode-escape-characters-scala
+
+  // println("music int")
+  // // val musicInt = Integer.parseInt(music2, 8)
+  // // val musicInt = Integer.toHexString(music2 | 0x10000).subString(1)
+
+  // // def mask(c: Char): Char = c | 0x10000
+  // // val musicInt = Integer.toHexString(music2.map(mask).subString(1))
+  // // println(musicInt)
+
+  // // println(musicInt.toHexString)
+
+
+  // println("tweets")
+  // println(tweets)
+
+  // println("mahjong")
+  // println(mahjong.toString)
+
+  // // https://stackoverflow.com/questions/24968645/how-to-get-unicode-of-smiley-in-scala
+  // val smiley = "\u263a"
+  // println(smiley)
+
+  // val smiley2 = "☺"
+  // println("another smiley")
+  // println(smiley2)
+
+  // println("smiley equality")
+  // println(smiley==smiley2)
+
+  // println("filing cabinet")
+
+  // val filingCabinet = "\ufe0f"
+  // println(filingCabinet)
+
+  // println("smiley - filing cabinet equality check")
+  // println(smiley==filingCabinet)
 
   
 
-  // BannoDemo/src/main/scala/me/peterbecich/bannodemo/twitter/stats/
+  // // BannoDemo/src/main/scala/me/peterbecich/bannodemo/twitter/stats/
 
 
 
