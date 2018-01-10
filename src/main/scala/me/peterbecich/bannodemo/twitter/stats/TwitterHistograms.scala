@@ -37,33 +37,33 @@ object TwitterHistograms {
 
   import me.peterbecich.bannodemo.emojis.Emojis._
 
-  private lazy val emojisHistogram: IO[TwitterHistogram] =
-    emojis match {
-      case Left(error) => {
-        println("error retrieving emojis from disk")
-        TwitterHistogram.makeTwitterHistogram("Emojis", (_: Tweet) => Seq(), _bins = IndexedSeq.empty[String], _growBins = false)
-      }
-      case Right(emojis) => {
-        println("some decoded emojis:")
-        emojis.take(16).map(_.unified).foreach(println(_))
+  // private lazy val emojisHistogram: IO[TwitterHistogram] =
+  //   emojis match {
+  //     case Left(error) => {
+  //       println("error retrieving emojis from disk")
+  //       TwitterHistogram.makeTwitterHistogram("Emojis", (_: Tweet) => Seq(), _bins = IndexedSeq.empty[String], _growBins = false)
+  //     }
+  //     case Right(emojis) => {
+  //       println("some decoded emojis:")
+  //       emojis.take(16).map(_.unified).foreach(println(_))
         
-        val bins = emojis.map(emoji => "q").toIndexedSeq
-        //         "unified": "1F1E8-1F1F4",
-        // val regex = raw"""\w\w\w\w\w-\w\w\w\w\w""".r
+  //       val bins = emojis.map(emoji => "q").toIndexedSeq
+  //       //         "unified": "1F1E8-1F1F4",
+  //       // val regex = raw"""\w\w\w\w\w-\w\w\w\w\w""".r
 
 
-        def keys(tweet: Tweet) = bins.filter(bin => tweet.text.contains(bin))
+  //       def keys(tweet: Tweet) = bins.filter(bin => tweet.text.contains(bin))
         
-        TwitterHistogram.makeTwitterHistogram("Emojis", keys, _bins = bins, _growBins = false)
+  //       TwitterHistogram.makeTwitterHistogram("Emojis", keys, _bins = bins, _growBins = false)
 
-      }
+  //     }
 
 
-  }
+  // }
 
 
   private lazy val makeHistograms: IO[List[TwitterHistogram]]=
-    Traverse[List].sequence(List(urlHistogram, urlEndpointHistogram, hashtagHistogram, emojisHistogram))
+    Traverse[List].sequence(List(urlHistogram, urlEndpointHistogram, hashtagHistogram))
 
 
 

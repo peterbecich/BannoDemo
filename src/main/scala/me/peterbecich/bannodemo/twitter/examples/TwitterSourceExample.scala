@@ -27,7 +27,7 @@ object TwitterSourceExample {
 
   val printTwitter: IO[Unit] = TwitterSource.createTwitterStream.flatMap { twitterStream =>
     twitterStream
-      .map(_.text)
+      .map(_.text.length.toString)
       .intersperse("\n")
       // .through(text.lines)
       .through(text.utf8Encode)
