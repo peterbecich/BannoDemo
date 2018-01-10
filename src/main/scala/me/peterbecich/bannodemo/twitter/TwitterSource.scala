@@ -46,12 +46,14 @@ object TwitterSource {
     val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
     val foo = streamingClient.FS2.sampleStatusesStream()(sink)
     val queueSizeStream: Stream[IO, Unit] = twitterQueue.size.discrete.flatMap { queueSize =>
-      if(queueSize > 0 && queueSize % 5 == 0)
+      if(queueSize > 0 && queueSize % 8 == 0)
         Stream.eval(IO(println("queue size: "+queueSize)))
       else
         Stream.eval(IO(()))
     }
-  } yield queueSizeStream.drain.mergeHaltR(twitterQueue.dequeue)
+  } yield twitterQueue.dequeue.buffer(8).concurrently(queueSizeStream.drain)
+
+  //queueSizeStream.drain.mergeHaltR(twitterQueue.dequeue).buffer(8)
 
 }
 

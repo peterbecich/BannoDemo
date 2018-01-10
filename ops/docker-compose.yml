@@ -13,3 +13,5 @@ services:
       - TWITTER_ACCESS_TOKEN_SECRET=${TWITTER_ACCESS_TOKEN_SECRET}
     deploy:
       replicas: 1
+    restart: always
+
