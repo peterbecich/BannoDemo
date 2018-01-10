@@ -40,19 +40,30 @@ object TwitterSource {
     }
 
   // https://github.com/functional-streams-for-scala/fs2/blob/series/0.10/docs/migration-guide-0.10.md#performance
+
+  private lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](2)
+
+  import scala.concurrent.duration._
   
   val createTwitterStream: IO[Stream[IO, Tweet]] = for {
     twitterQueue <- createTwitterQueue
     val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
     val foo = streamingClient.FS2.sampleStatusesStream()(sink)
-    val queueSizeStream: Stream[IO, Unit] = twitterQueue.size.discrete.flatMap { queueSize =>
-      if(queueSize > 0 && queueSize % 8 == 0)
-        Stream.eval(IO(println("queue size: "+queueSize)))
-      else
-        Stream.eval(IO(()))
+    val watchQueueSize: Stream[IO, Unit] = schedulerStream.flatMap { scheduler =>
+      scheduler.fixedRate(10.second)(IO.ioEffect, global).flatMap { _ =>
+        Stream.eval(twitterQueue.size.get).map { queueSize =>
+          "Twitter Source queue size: " + queueSize
+        }
+          .intersperse("\n")
+          .through(fs2.text.utf8Encode)
+          .observe(fs2.io.stdout)
+          .drain
+      }
     }
-  } yield twitterQueue.dequeue.buffer(8).concurrently(queueSizeStream.drain)
 
+  } yield twitterQueue.dequeue.buffer(8).concurrently(watchQueueSize.drain)
+
+  // twitterQueue.dequeue.buffer(8).concurrently(queueSizeStream.drain)
   //queueSizeStream.drain.mergeHaltR(twitterQueue.dequeue).buffer(8)
 
 }

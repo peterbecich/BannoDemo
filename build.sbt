@@ -13,8 +13,8 @@ enablePlugins(DockerPlugin)
 // https://github.com/marcuslonnberg/sbt-docker
 imageNames in docker := Seq(
   // Sets the latest tag
-  ImageName(s"peterbecich/${name.value}-arm64:latest")
-  // ImageName(s"peterbecich/${name.value}")
+  // ImageName(s"peterbecich/${name.value}-arm64:latest")
+  ImageName(s"peterbecich/${name.value}")
 )
 
 parallelExecution in ThisBuild := false
@@ -27,8 +27,8 @@ dockerfile in docker := {
   val artifactTargetPath = s"/app/${artifact.name}"
 
   new Dockerfile {
-    from("arm64v8/openjdk:8-jre")
-    // from("openjdk:8-jre")
+    // from("arm64v8/openjdk:8-jre")
+    from("openjdk:8-jre")
     add(artifact, artifactTargetPath)
     copy(baseDirectory(_ / "BannoDemo-frontend" / "static").value, file("/srv/static"))
     // copy(baseDirectory(_ / "src" / "main" / "resources" / "emoji-data" ).value, file("/srv/emoji-data"))

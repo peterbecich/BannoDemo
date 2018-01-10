@@ -215,7 +215,7 @@ abstract class TwitterWindowAccumulator {
   // prints Tweets/second to console every two seconds
   private lazy val recentCount: Stream[IO, (LocalDateTime, Long)] =
     schedulerStream.flatMap { scheduler =>
-      scheduler.fixedRate(2.second)(IO.ioEffect, global).flatMap { _ =>
+      scheduler.fixedRate(10.second)(IO.ioEffect, global).flatMap { _ =>
         Stream.eval {
           minuteCountAccumulatorSignal.get.map { minuteCountAcc =>
             (minuteCountAcc.ts, minuteCountAcc.sum)
