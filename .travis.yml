@@ -1,3 +1,4 @@
+sudo: required
 language: scala
 scala:
   - 2.12.4
@@ -9,6 +10,10 @@ cache:
     - $HOME/.sbt
     - $HOME/build/peterbecich/BannoDemo/target
 
+before_install:
+  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
+  - git submodule update --init --recursive
+    
 script:
   - sbt compile
   - sbt test
