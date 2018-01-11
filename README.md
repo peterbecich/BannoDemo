@@ -17,10 +17,10 @@ Demonstration with [Twitter firehose data](https://developer.twitter.com/en/docs
 1. Create a file `BannoDemo/ops/.env`.  Docker Compose will read this file for its environmental variables.
 1. Copy this template and the corresponding credentials from your Twitter App into the file `.env`:
 
-	TWITTER_CONSUMER_TOKEN_KEY=
-	TWITTER_CONSUMER_TOKEN_SECRET=
-	TWITTER_ACCESS_TOKEN_KEY=
-	TWITTER_ACCESS_TOKEN_SECRET=
+    TWITTER_CONSUMER_TOKEN_KEY=
+    TWITTER_CONSUMER_TOKEN_SECRET=
+    TWITTER_ACCESS_TOKEN_KEY=
+    TWITTER_ACCESS_TOKEN_SECRET=
 	
 1. Start SBT in `BannoDemo/`.
 1. Run `test` in SBT.
