@@ -8,7 +8,12 @@ cache:
     - $HOME/.ivy2
     - $HOME/.sbt
     - $HOME/build/peterbecich/BannoDemo/target
-  
+
+script:
+  - sbt compile
+  - sbt test
+  - sbt docker
+    
 jdk:
   - openjdk8
 
