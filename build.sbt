@@ -21,6 +21,10 @@ parallelExecution in ThisBuild := false
 
 mainClass in assembly := Some("me.peterbecich.bannodemo.HelloWorldServer")
 
+// addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
+
+addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.4" cross CrossVersion.binary)
+
 dockerfile in docker := {
   // The assembly task generates a fat JAR file
   val artifact: File = assembly.value

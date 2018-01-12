@@ -94,7 +94,8 @@ object TwitterStats {
   lazy val collectStats: IO[Stream[IO, Json]] = {
     for {
       _ <- IO(println("acquire Twitter stream"))
-      twitterStream <- TwitterSource.createTwitterStream
+      // twitterStream <- TwitterSource.createTwitterStream
+      twitterStream <- TwitterSource.createRestartingTwitterStream
       _ <- IO(println("make accumulators pipeline"))
       accumulatorTup <- TwitterAccumulators.makeTwitterAccumulator
       (accumulatorPipe, accumulatorsPayloadStream) = accumulatorTup

@@ -53,8 +53,10 @@ object TwitterSource {
   import scala.concurrent.Future
   import scala.concurrent.duration._
   import scala.util.Try
+  import java.time.LocalDateTime
   
-  val createTwitterStream: IO[Stream[IO, Tweet]] = createTwitterQueue.flatMap { twitterQueue =>
+  lazy val createTwitterStream: IO[Stream[IO, Tweet]] = createTwitterQueue.flatMap { twitterQueue =>
+    println("create Twitter Stream.  "+LocalDateTime.now())
     val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
     val fTwitterStream: Future[TwitterStream] =
       streamingClient.FS2.sampleStatusesStream()(sink)
@@ -71,9 +73,31 @@ object TwitterSource {
       }
     }
 
-    IO(twitterQueue.dequeue.buffer(16).concurrently(watchQueueSize.drain))
+    IO {
+      twitterQueue
+        .dequeue
+        .buffer(16)
+        .concurrently(watchQueueSize.drain)
+        .append(Stream.eval_(IO(println("Twitter Source stream has ended"))))
+    }
 
-  } 
+  }
+
+
+  lazy val createRestartingTwitterStream: IO[Stream[IO, Tweet]] =
+    createTwitterStream.flatMap { firstTwitterStream =>
+      lazy val next: Stream[IO, Stream[IO, Tweet]] =
+        Stream.eval(createRestartingTwitterStream)
+
+      IO(firstTwitterStream.append(Monad[Lambda[A => Stream[IO,A]]].flatten(next)))
+    }
+
+
+    // createTwitterStream.flatMap { firstTwitterStream =>
+    //   IO.suspend(createRestartingTwitterStream).map { secondTwitterStream =>
+    //     firstTwitterStream ++ secondTwitterStream
+    //   }
+    // }
 
 }
 
