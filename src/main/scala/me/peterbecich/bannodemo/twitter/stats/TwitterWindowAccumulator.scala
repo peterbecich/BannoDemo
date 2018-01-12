@@ -240,7 +240,7 @@ abstract class TwitterWindowAccumulator {
   //       Stream.eval(secondCountAccumulatorSignal.get)
   //     }
   //   }.map(acc => "second signal: "+acc.toString)
-  //     .intersperse("\n")
+   //     .intersperse("\n")
   //     .through(fs2.text.utf8Encode)
   //     .through(fs2.io.stdout)
   //     .drain

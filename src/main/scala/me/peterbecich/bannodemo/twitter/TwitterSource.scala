@@ -34,8 +34,14 @@ object TwitterSource {
         case (tweet: Tweet) => Stream.emit(tweet).observe(tweetSink).drain
         case _ => Stream.empty
       }
-      case (_: SiteStreamingMessage) => Stream.empty
-      case (_: UserStreamingMessage) => Stream.empty
+      case (ssm: SiteStreamingMessage) => {
+        println("SiteStreamingMessage: "+ssm)
+        Stream.empty
+      }
+      case (usm: UserStreamingMessage) => {
+        println("UserStreamingMessage: "+usm)
+        Stream.empty
+      }
         
     }
 
@@ -43,16 +49,20 @@ object TwitterSource {
 
   private lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](2)
 
+  import com.danielasfregola.twitter4s.http.clients.streaming.TwitterStream
+  import scala.concurrent.Future
   import scala.concurrent.duration._
+  import scala.util.Try
   
-  val createTwitterStream: IO[Stream[IO, Tweet]] = for {
-    twitterQueue <- createTwitterQueue
+  val createTwitterStream: IO[Stream[IO, Tweet]] = createTwitterQueue.flatMap { twitterQueue =>
     val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
-    val foo = streamingClient.FS2.sampleStatusesStream()(sink)
+    val fTwitterStream: Future[TwitterStream] =
+      streamingClient.FS2.sampleStatusesStream()(sink)
+
     val watchQueueSize: Stream[IO, Unit] = schedulerStream.flatMap { scheduler =>
-      scheduler.fixedRate(10.second)(IO.ioEffect, global).flatMap { _ =>
+      scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
         Stream.eval(twitterQueue.size.get).map { queueSize =>
-          "Twitter Source queue size: " + queueSize
+          "Twitter Source queue size: " + queueSize + "\n"
         }
           .intersperse("\n")
           .through(fs2.text.utf8Encode)
@@ -61,10 +71,9 @@ object TwitterSource {
       }
     }
 
-  } yield twitterQueue.dequeue.buffer(8).concurrently(watchQueueSize.drain)
+    IO(twitterQueue.dequeue.buffer(16).concurrently(watchQueueSize.drain))
 
-  // twitterQueue.dequeue.buffer(8).concurrently(queueSizeStream.drain)
-  //queueSizeStream.drain.mergeHaltR(twitterQueue.dequeue).buffer(8)
+  } 
 
 }
 

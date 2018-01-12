@@ -338,7 +338,7 @@ abstract class TwitterAverage {
   // prints Tweets/second to console every two seconds
   private lazy val recentCount: Stream[IO, (LocalDateTime, Long, Long)] =
     schedulerStream.flatMap { scheduler =>
-      scheduler.fixedRate(2.second)(IO.ioEffect, global).flatMap { _ =>
+      scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
         Stream.eval(timeTableSignal.get).flatMap { timeTable =>
           Stream.eval(IO(LocalDateTime.now()).map { _.truncatedTo(ChronoUnit.SECONDS) }).map { now =>
             val minus10Seconds = now.minus(Duration.ofSeconds(10))
@@ -359,7 +359,7 @@ abstract class TwitterAverage {
 
   lazy val watchSecondSignal: Stream[IO, Unit] =
     schedulerStream.flatMap { scheduler =>
-      scheduler.fixedRate(8.second)(IO.ioEffect, global).flatMap { _ =>
+      scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
         Stream.eval(secondCountAccumulatorSignal.get)
       }
     }.map(acc => "second signal: "+acc.toString)

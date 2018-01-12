@@ -12,32 +12,6 @@ import io.circe.generic.semiauto._
 
 object Emojis {
 
-  // case class Emoji(
-  //   name: String,
-  //   unified: String,
-  //   non_qualified: String,
-  //   docomo: String,
-  //   au: String,
-  //   softbank: String,
-  //   google: String,
-  //   image: String,
-  //   sheet_x: Int,
-  //   sheet_y: Int,
-  //   short_name: String,
-  //   short_names: List[String],
-  //   text: String,
-  //   texts: String,
-  //   category: String,
-  //   sort_order: Int,
-  //   added_in: String,
-  //   has_img_apple: Boolean,
-  //   has_img_google: Boolean,
-  //   has_img_twitter: Boolean,
-  //   has_img_emojione: Boolean,
-  //   has_img_facebook: Boolean,
-  //   has_img_messenger: Boolean
-  // )
-
   case class Emoji(
     name: Option[String],
     unified: String,
@@ -70,7 +44,14 @@ object Emojis {
     def getEmojiInt(unified: String): Option[Int] =
       scala.util.Try(Integer.parseInt(unified, 16)).toOption
 
-    lazy val emojiInt: Option[Int] = points.headOption.flatMap(getEmojiInt)
+    // lazy val emojiInt: Option[Int] = points.headOption.flatMap(getEmojiInt)
+
+    // return only UTF-8 emojis
+    lazy val emojiInt: Option[Int] = points.headOption.filter { s => s.length == 4 }.flatMap(getEmojiInt)
+    lazy val emojiHexString: Option[String] = emojiInt.map(i => "%04x".format(i))
+    lazy val emojiChar: Option[Char] = emojiInt.map(_.toChar)
+
+
     lazy val emojiInts: Option[List[Int]] = Traverse[List].sequence(points.map(getEmojiInt))
   }
 
@@ -131,9 +112,20 @@ object EmojisExample extends App {
       decodedEmojis.slice(512,560).foreach { emoji =>
         println(emoji.name + "  " + emoji.unified + "  " + emoji.emojiInts.map(_.map(_.toHexString)))
       }
+
+      println("UTF-8 emojis:")
+      decodedEmojis.filter(_.emojiInt.isDefined).foreach { emoji =>
+        println(emoji.name + "  " + emoji.unified + "  " + emoji.emojiHexString)
+      }
+
+      println("UTF-8 emoji chars:")
+      decodedEmojis.filter(_.emojiInt.isDefined).foreach { emoji =>
+        println(emoji.name + "  " + emoji.unified + "  " + emoji.emojiChar.toString)
+      }
+      
     }
   }
-
+  
   println("------------------")
 
   // https://stackoverflow.com/a/25977288/1007926
