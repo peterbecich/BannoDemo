@@ -54,33 +54,38 @@ object TwitterSource {
   import scala.concurrent.duration._
   import scala.util.Try
   import java.time.LocalDateTime
+  import me.peterbecich.bannodemo.twitter.stats.TwitterWindowAccumulator
+  
   
   lazy val createTwitterStream: IO[Stream[IO, Tweet]] = createTwitterQueue.flatMap { twitterQueue =>
-    println("create Twitter Stream.  "+LocalDateTime.now())
-    val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
-    val fTwitterStream: Future[TwitterStream] =
-      streamingClient.FS2.sampleStatusesStream()(sink)
+    TwitterWindowAccumulator.makeWindowAccumulator.flatMap { windowAccumulator =>
+      println("create Twitter Stream.  "+LocalDateTime.now())
+      val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
+      val fTwitterStream: Future[TwitterStream] =
+        streamingClient.FS2.sampleStatusesStream()(sink)
 
-    val watchQueueSize: Stream[IO, Unit] = schedulerStream.flatMap { scheduler =>
-      scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
-        Stream.eval(twitterQueue.size.get).map { queueSize =>
-          "Twitter Source queue size: " + queueSize + "\n"
+      val watchQueueSize: Stream[IO, Unit] = schedulerStream.flatMap { scheduler =>
+        scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
+          Stream.eval(twitterQueue.size.get).map { queueSize =>
+            "Twitter Source queue size: " + queueSize + "\n"
+          }
+            .intersperse("\n")
+            .through(fs2.text.utf8Encode)
+            .observe(fs2.io.stdout)
+            .drain
         }
-          .intersperse("\n")
-          .through(fs2.text.utf8Encode)
-          .observe(fs2.io.stdout)
-          .drain
+      }
+
+      IO {
+        twitterQueue
+          .dequeue
+          .buffer(16)
+          .through(windowAccumulator.windowAccumulatorPipe)
+          .concurrently(watchQueueSize.drain)
+          .interruptWhen(windowAccumulator.streamInactive)
+          .append(Stream.eval_(IO(println("Twitter Source stream has ended"))))
       }
     }
-
-    IO {
-      twitterQueue
-        .dequeue
-        .buffer(16)
-        .concurrently(watchQueueSize.drain)
-        .append(Stream.eval_(IO(println("Twitter Source stream has ended"))))
-    }
-
   }
 
 

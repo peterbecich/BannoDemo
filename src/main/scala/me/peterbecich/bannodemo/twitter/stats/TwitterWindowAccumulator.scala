@@ -234,18 +234,19 @@ abstract class TwitterWindowAccumulator {
     .observe(fs2.io.stdout)
     .drain
 
-  // lazy val watchSecondSignal: Stream[IO, Unit] =
-  //   schedulerStream.flatMap { scheduler =>
-  //     scheduler.fixedRate(8.second)(IO.ioEffect, global).flatMap { _ =>
-  //       Stream.eval(secondCountAccumulatorSignal.get)
-  //     }
-  //   }.map(acc => "second signal: "+acc.toString)
-   //     .intersperse("\n")
-  //     .through(fs2.text.utf8Encode)
-  //     .through(fs2.io.stdout)
-  //     .drain
+  lazy val streamInactive: Stream[IO, Boolean] =
+    schedulerStream.flatMap { scheduler =>
+      scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
+        Stream.eval {
+          minuteCountAccumulatorSignal.get.map { minuteCountAcc =>
+            println("minute count acc == 0: " + (minuteCountAcc.sum == 0))
+            minuteCountAcc.sum == 0
+          }
+        }
+      }
+    }
 
-  //  incrementTimePipe.andThen(filterTimeThresholdPipe)
+
   val windowAccumulatorPipe: Pipe[IO, Tweet, Tweet] =
     (s: Stream[IO, Tweet]) =>
   incrementTimePipe(s)
