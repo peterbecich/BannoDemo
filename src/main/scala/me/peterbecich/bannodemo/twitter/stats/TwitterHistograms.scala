@@ -38,7 +38,7 @@ object TwitterHistograms {
   import me.peterbecich.bannodemo.emojis.Emojis._
 
   private lazy val emojisHistogram: IO[TwitterHistogram] =
-    emojis match {
+    retrieveEmojis match {
       case Left(error) => {
         println("error retrieving emojis from disk")
         TwitterHistogram.makeTwitterHistogram("Emojis", (_: Tweet) => Seq(), _bins = IndexedSeq.empty[String], _growBins = false)
@@ -81,7 +81,7 @@ object TwitterHistograms {
         println("test tweet keys found")
         println(testTweetKeys)
         
-        TwitterHistogram.makeTwitterHistogram("Emojis", keys, _bins = bins, _growBins = false)
+        TwitterHistogram.makeTwitterHistogram("UTF8Emojis", keys, _bins = bins, _growBins = false)
 
       }
 

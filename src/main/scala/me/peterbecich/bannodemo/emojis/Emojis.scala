@@ -65,12 +65,28 @@ object Emojis {
   import io.circe.parser.decode
 
   // 
-  lazy val emojis: Either[Error, EmojisCollection] = {
+  lazy val retrieveEmojis: Either[Error, EmojisCollection] = {
     val emojisPath = "/srv/emojis/emoji_pretty.json"
     val emojisText = Source.fromFile(emojisPath).getLines.mkString
 
-    decode[EmojisCollection](emojisText)
+    val eUnfiltered: Either[Error, EmojisCollection] = decode[EmojisCollection](emojisText)
+
+    val numeric = List('0','1','2','3','4','5','6','7','8','9','#')
+
+    eUnfiltered.map { (lEmoji: EmojisCollection)  =>
+      lEmoji
+        .filter { emoji => emoji.emojiChar.isDefined }
+        .filter { emoji => numeric.contains(emoji.emojiChar.get) == false } // unsafe
+    }
   }
+
+  lazy val retrieveUTF8Emojis: Either[Error, EmojisCollection] =
+    retrieveEmojis.map { emojis =>
+      emojis.filter(_.emojiChar.isDefined)
+    }
+
+  lazy val utf8EmojisChars: List[String] =
+    retrieveUTF8Emojis.fold(_ => List(), ll => ll).map(_.emojiChar.get.toString)
 
   def tweetStringToEmojiInts(s: String): Option[List[Int]] = {
     val ints: List[Int] = s.toCharArray().map(_.toInt).toList

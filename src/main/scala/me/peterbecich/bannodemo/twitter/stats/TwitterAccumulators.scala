@@ -22,11 +22,24 @@ object TwitterAccumulators {
     tweet.text.contains("pbs.twimg.com") ||
       tweet.text.contains("abs.twimg.com")
 
+  import me.peterbecich.bannodemo.emojis.Emojis.utf8EmojisChars
+
+  def makeEmojisAccumulator(tweetsAccumulator: TwitterAccumulator): IO[TwitterAccumulator] = {
+    def predicate(tweet: Tweet): Boolean =
+      tweet.text.toCharArray().map(_.toString).exists { codepoint =>
+        utf8EmojisChars.contains(codepoint)
+      }
+
+    TwitterAccumulator.makeAccumulator("EmojiAccumulator", predicate, Some(tweetsAccumulator))
+  }
+
+
+
   private lazy val makeAccumulators: IO[List[TwitterAccumulator]] =
     for {
       tweets <- TwitterAccumulator.makeAccumulator("TweetAccumulator", _ => true)
-      emojis <- TwitterAccumulator.makeAccumulator("EmojiAccumulator", tweet => true,Some(tweets))
       urls <- TwitterAccumulator.makeAccumulator("URLAccumulator", tweet => tweet.text.contains("http"), Some(tweets))
+      emojis <- makeEmojisAccumulator(tweets)
       pics <- TwitterAccumulator.makeAccumulator("PicAccumulator", containsPic, Some(tweets))
       hashtags <- TwitterAccumulator.makeAccumulator("HashtagAccumulator", tweet => tweet.text.contains("#"), Some(tweets))
     } yield List(tweets, emojis, urls, pics, hashtags)
