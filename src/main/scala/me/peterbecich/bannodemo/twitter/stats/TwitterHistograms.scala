@@ -23,9 +23,6 @@ import scala.concurrent.duration._
 
 object TwitterHistograms {
 
-  // private lazy val urlHistogram: IO[TwitterHistogram] =
-  //   TwitterHistogram.makeTwitterHistogramRegex("URL", raw"http.*?[com|org]".r)
-
   private lazy val urlHistogram: IO[TwitterHistogram] =
     TwitterHistogram.makeTwitterHistogramRegex("URL", raw"http\S+\.(com|org|net|co|c)?".r)
 
@@ -91,9 +88,6 @@ object TwitterHistograms {
 
   private lazy val makeHistograms: IO[List[TwitterHistogram]]=
     Traverse[List].sequence(List(urlHistogram, urlEndpointHistogram, hashtagHistogram, emojisHistogram))
-
-
-
 
   object JSON {
     import io.circe._

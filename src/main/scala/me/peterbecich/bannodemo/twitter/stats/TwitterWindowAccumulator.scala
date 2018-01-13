@@ -173,8 +173,6 @@ abstract class TwitterWindowAccumulator(watch: Boolean = false) {
         Stream.eval(minuteSum).flatMap { sum =>
           Stream.eval {
             minuteCountAccumulatorSignal.modify { acc =>
-              // println("sum: "+sum)
-              // println("acc: "+acc)
               acc.set(sum)
             }
           }

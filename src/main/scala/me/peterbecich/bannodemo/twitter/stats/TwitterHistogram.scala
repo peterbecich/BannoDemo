@@ -55,10 +55,6 @@ object RegexExample {
   val hashtag: Regex = raw"""\#.+\s?""".r
 
   val hashtags: String = """sauehsanotuh #foo #bar asoeuthaoseuh #baz aseutha"""
-  // Regex => Set[K]
-
-  // def makeKeys(tweet: Tweet, regex: Regex): Set[String] =
-
 
 }
 
@@ -192,8 +188,8 @@ case class PredicateTwitterHistogram(
         } else {
           (bins, histogram)
         }
-      }//.map(_ => (()))
-    }//.map(_ => (()))
+      }
+    }
 
 }
 
@@ -229,7 +225,7 @@ case class RegexTwitterHistogram(
         } else {
           (bins, histogram)
         }
-      }//.map(_ => (()))
-    }//.map(_ => (()))
+      }
+    }
 
 }

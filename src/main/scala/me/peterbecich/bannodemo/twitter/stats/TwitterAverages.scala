@@ -99,18 +99,8 @@ object TwitterAverages {
     val averagePayloads: List[Stream[IO, TwitterAverage.JSON.AveragePayload]] =
       averages.map(_.averagePayloadStream)
 
-    // val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
-    //   Traverse[List].sequence(averagePayloads).flatMap { ll =>
-    //     Stream.eval(IO(println("stream list payload: "+ll))).map { _ =>
-    //       ll
-    //     }
-    //   }
-
     val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
       sequenceStreams(averagePayloads)
-
-    // val streamListPayload: Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
-    //   averagePayloads(0).map(List(_))
 
     streamListPayload.map(JSON.makeAveragesPayload)
   }
