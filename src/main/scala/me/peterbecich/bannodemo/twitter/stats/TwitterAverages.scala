@@ -26,10 +26,69 @@ object TwitterAverages {
 
   private lazy val tweetAverage: IO[TwitterAverage] =
     TwitterAverage.makeAverage("TweetAverage", (_) => true)
-  private lazy val emojiAverage: IO[TwitterAverage] =
-    TwitterAverage.makeAverage("EmojiAverage", (_) => true)
   private lazy val hashtagAverage: IO[TwitterAverage] =
     TwitterAverage.makeAverage("HashtagAverage", tweet => tweet.text.contains("#"))
+
+  import me.peterbecich.bannodemo.emojis.Emojis._
+  
+  private lazy val emojiAverage: IO[TwitterAverage] =
+    retrieveEmojis match {
+      case Left(error) => {
+        println("error retrieving emojis from disk")
+        TwitterAverage.makeAverage("EmojiAverage", (_) => false)
+      }
+      case Right(emojis) => {
+        val bins: IndexedSeq[String] = emojis
+          .map(_.emojiChar)
+          .collect {
+            case Some( emojiChar ) => emojiChar
+          }
+          .map(_.toString)
+          .toIndexedSeq
+
+        println("a few emoji codepoints:")
+        bins.take(128).foreach(s => print(s + " "))
+
+        def keys(tweet: Tweet): IndexedSeq[String] =
+          _keys(tweet.text)
+
+        def _keys(tweetText: String): IndexedSeq[String] = {
+          val tweetCharStrings = tweetText.toCharArray().map(_.toString)
+          val product = bins.flatMap { emojiCharS =>
+            tweetCharStrings.map { tweetCharS =>
+              (emojiCharS, tweetCharS)
+            }
+          }
+          // println("product: "+product.length)
+
+          product
+            .filter { case (e, t) => e.equalsIgnoreCase(t) }
+            .map(_._1)
+        }
+
+
+        val testTweet = "test tweet 🎶 👂 🤑 🎒 💛 😂 👏 🐼 📸 💕 ☔ ☕ ☘ ☝ ☠ ☢ ☣ ☦ ☪ ☮ ☯ ☸ ☹ ☺ foobar"
+
+        lazy val testTweetKeys = _keys(testTweet)
+
+        println("test tweet")
+        println(testTweet)
+        println("test tweet keys found")
+        println(testTweetKeys)
+
+        val testTweet2 = "test tweet no emojis"
+
+        lazy val testTweetKeys2 = _keys(testTweet2)
+
+        println("test tweet 2")
+        println(testTweet2)
+        println("test tweet 2 keys found")
+        println(testTweetKeys2)
+        
+        
+        TwitterAverage.makeAverage("EmojiAverage", tweet => (keys(tweet).length > 0))
+      }
+    }
 
   object JSON {
     import io.circe._
