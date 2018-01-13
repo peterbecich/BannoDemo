@@ -104,7 +104,7 @@ object TwitterStats {
       (averagePipe, averagesPayloadStream) = averagesTup
       histogramsTup <- TwitterHistograms.makeTwitterHistograms
       (histogramPipe, histogramsPayloadStream) = histogramsTup
-      windowAccumulator <- TwitterWindowAccumulator.makeWindowAccumulator
+      windowAccumulator <- TwitterWindowAccumulator.makeWindowAccumulator(true)
       _ <- IO(println("begin"))
     } yield {
       twitterStream

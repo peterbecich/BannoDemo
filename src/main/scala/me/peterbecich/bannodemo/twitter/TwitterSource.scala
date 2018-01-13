@@ -58,7 +58,7 @@ object TwitterSource {
   
   
   lazy val createTwitterStream: IO[Stream[IO, Tweet]] = createTwitterQueue.flatMap { twitterQueue =>
-    TwitterWindowAccumulator.makeWindowAccumulator.flatMap { windowAccumulator =>
+    TwitterWindowAccumulator.makeWindowAccumulator(false).flatMap { windowAccumulator =>
       println("create Twitter Stream.  "+LocalDateTime.now())
       val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
       val fTwitterStream: Future[TwitterStream] =
@@ -96,13 +96,6 @@ object TwitterSource {
 
       IO(firstTwitterStream.append(Monad[Lambda[A => Stream[IO,A]]].flatten(next)))
     }
-
-
-    // createTwitterStream.flatMap { firstTwitterStream =>
-    //   IO.suspend(createRestartingTwitterStream).map { secondTwitterStream =>
-    //     firstTwitterStream ++ secondTwitterStream
-    //   }
-    // }
 
 }
 

@@ -36,18 +36,6 @@ object TwitterWindowAccumulator {
   type TimeTable = TrieMap[LocalDateTime, Long]
   type TimeTableSignal = Signal[IO, TimeTable]
 
-  // Set of Tweet counts taken from the Time Table;
-  // used to produce averages
-  // trait CountAccumulator {
-  //   val sum: Long
-  //   val count: Long
-  //   val duration: Duration
-  //   lazy val seconds: Long = duration.get(ChronoUnit.SECONDS)
-  //   def average: Double = sum.toDouble / (count*seconds)
-  //   def add(s: Long): CountAccumulator
-  //   val ts: LocalDateTime
-  // }
-
   case class MinuteCountAccumulator(
     sum: Long = 0,
     ts: LocalDateTime = LocalDateTime.now()
@@ -84,37 +72,21 @@ object TwitterWindowAccumulator {
   private def makeTimeTableSignal: IO[TimeTableSignal] =
     Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
 
-  lazy val makeWindowAccumulator:
+  def makeWindowAccumulator(watch: Boolean = false):
       IO[TwitterWindowAccumulator] = for {
     _timeTableSignal <- makeTimeTableSignal
     _minuteCountAccumulatorSignal <- Signal.apply {
       MinuteCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
   } yield {
-    new TwitterWindowAccumulator {
+    new TwitterWindowAccumulator(watch) {
       val timeTableSignal = _timeTableSignal
       val minuteCountAccumulatorSignal = _minuteCountAccumulatorSignal
      }
   }
 
-  // private def _makeAverage(_name: String, _predicate: Tweet => Boolean):
-  //     IO[(TwitterWindowAccumulator, TimeTableSignal)] = for {
-  //   _timeTableSignal <- makeTimeTableSignal
-  //   _minuteCountAccumulatorSignal <- Signal.apply {
-  //     MinuteCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
-  // } yield {
-  //   (new TwitterWindowAccumulator {
-  //     val name = _name
-  //     val timeTableSignal = _timeTableSignal
-  //     val predicate = _predicate
-  //     val minuteCountAccumulatorSignal = _minuteCountAccumulatorSignal
-  //    }, _timeTableSignal)
-  // }
-  
-
-
 }
 
-abstract class TwitterWindowAccumulator {
+abstract class TwitterWindowAccumulator(watch: Boolean = false) {
 
   import TwitterWindowAccumulator._
 
@@ -248,11 +220,13 @@ abstract class TwitterWindowAccumulator {
 
 
   val windowAccumulatorPipe: Pipe[IO, Tweet, Tweet] =
-    (s: Stream[IO, Tweet]) =>
-  incrementTimePipe(s)
-    .through(filterTimeThresholdPipe)
-    .concurrently(printRecentCount)
-    .concurrently(calculateMinuteCount)
-    // .concurrently(watchSecondSignal)
-
+    if(watch)
+      (s: Stream[IO, Tweet]) => incrementTimePipe(s)
+        .through(filterTimeThresholdPipe)
+        .concurrently(printRecentCount)
+        .concurrently(calculateMinuteCount)
+    else
+      (s: Stream[IO, Tweet]) => incrementTimePipe(s)
+        .through(filterTimeThresholdPipe)
+        .concurrently(calculateMinuteCount)
 }

@@ -43,7 +43,7 @@ object TwitterAverage {
     val count: Long
     val duration: Duration
     lazy val seconds: Long = duration.get(ChronoUnit.SECONDS)
-    def average: Double = sum.toDouble / (count*seconds)
+    def average: Double = sum.toDouble * seconds / count
     def add(s: Long): CountAccumulator
     val ts: LocalDateTime
   }
@@ -362,12 +362,34 @@ abstract class TwitterAverage {
       scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
         Stream.eval(secondCountAccumulatorSignal.get)
       }
-    }.map(acc => "second signal: "+acc.toString)
+    }.map(acc => name + " second signal: "+acc.toString + " average: " + acc.average + "\n")
       .intersperse("\n")
       .through(fs2.text.utf8Encode)
       .through(fs2.io.stdout)
       .drain
 
+  lazy val watchMinuteSignal: Stream[IO, Unit] =
+    schedulerStream.flatMap { scheduler =>
+      scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
+        Stream.eval(minuteCountAccumulatorSignal.get)
+      }
+    }.map(acc => name + " minute signal: "+acc.toString + " average: " + acc.average + "\n")
+      .intersperse("\n")
+      .through(fs2.text.utf8Encode)
+      .through(fs2.io.stdout)
+      .drain
+
+  lazy val watchHourSignal: Stream[IO, Unit] =
+    schedulerStream.flatMap { scheduler =>
+      scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
+        Stream.eval(hourCountAccumulatorSignal.get)
+      }
+    }.map(acc => name + " hour signal: "+acc.toString + " average: " + acc.average + "\n")
+      .intersperse("\n")
+      .through(fs2.text.utf8Encode)
+      .through(fs2.io.stdout)
+      .drain
+  
   //  incrementTimePipe.andThen(filterTimeThresholdPipe)
   val averagePipe: Pipe[IO, Tweet, Tweet] =
     (s: Stream[IO, Tweet]) =>
@@ -378,5 +400,7 @@ abstract class TwitterAverage {
     .concurrently(calculateMinuteAverage)
     .concurrently(calculateSecondAverage)
     // .concurrently(watchSecondSignal)
+    // .concurrently(watchMinuteSignal)
+    // .concurrently(watchHourSignal)
 
 }
