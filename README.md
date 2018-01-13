@@ -17,7 +17,7 @@ Demonstration:
 ------------
 # Quick Start
 
-Docker Compose is required.
+Docker Compose is required.  If building the Docker Image from source, be sure to also [clone the sub-module](https://stackoverflow.com/a/4438292/1007926) in this repository, as Docker will copy its contents into the Image when building.
 
 1. Create a [Twitter App](https://apps.twitter.com/)
 1. Create a file `BannoDemo/ops/.env`.  Docker Compose will read this file for its environmental variables
