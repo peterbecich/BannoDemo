@@ -43,7 +43,7 @@ object TwitterAverage {
     val count: Long
     val duration: Duration
     lazy val seconds: Long = duration.get(ChronoUnit.SECONDS)
-    def average: Double = sum.toDouble * seconds / count
+    def average: Double = sum.toDouble / count
     def add(s: Long): CountAccumulator
     val ts: LocalDateTime
   }
