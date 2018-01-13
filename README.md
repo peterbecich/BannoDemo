@@ -15,7 +15,7 @@ Demonstration:
 
 
 ------------
-## Quick Start
+# Quick Start
 
 Docker Compose is required.
 
@@ -31,7 +31,7 @@ TWITTER_ACCESS_TOKEN_SECRET=
 ```
 1. Proceed with either a pre-built Docker Image, or build the image from source
 
-# Start from Pre-built Docker Image
+## Start from Pre-built Docker Image
 
 1. Pull the Docker image from Docker Hub
    [peterbecich/bannodemo](https://hub.docker.com/r/peterbecich/bannodemo/)
@@ -39,7 +39,7 @@ TWITTER_ACCESS_TOKEN_SECRET=
 1. Proceed to start the Compose application
 
 
-# (or) Build from Source
+## (or) Build from Source
 
 SBT is required.
 
@@ -49,7 +49,7 @@ SBT is required.
 1. Exit SBT and change directory to `BannoDemo/ops/`
 1. Proceed to start the Compose application
 
-# Start Docker Compose
+## Start Docker Compose
 
 1. Run `docker-compose up` to start the demonstration and log to the terminal, or `docker-compose up -d` to start the demonstration and free the terminal.
 1. Visit [http://localhost/stats](http://localhost/stats).
