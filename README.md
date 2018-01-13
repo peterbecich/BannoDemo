@@ -33,9 +33,9 @@ TWITTER_ACCESS_TOKEN_SECRET=
 
 ## Start from Pre-built Docker Image
 
-1. Pull the Docker image from Docker Hub
-   [peterbecich/bannodemo](https://hub.docker.com/r/peterbecich/bannodemo/)
-   [peterbecich/bannodemo-arm64](https://hub.docker.com/r/peterbecich/bannodemo-arm64/)
+1. Pull the Docker image from Docker Hub: 
+   [peterbecich/bannodemo](https://hub.docker.com/r/peterbecich/bannodemo/) or [peterbecich/bannodemo-arm64](https://hub.docker.com/r/peterbecich/bannodemo-arm64/)
+   
 1. Proceed to start the Compose application
 
 
@@ -46,10 +46,11 @@ SBT is required.
 1. Start SBT in `BannoDemo/`
 1. Run `test` in SBT
 1. Run `docker` in SBT to produce the Docker image `peterbecich/bannodemo:latest`
-1. Exit SBT and change directory to `BannoDemo/ops/`
+1. Exit SBT
 1. Proceed to start the Compose application
 
 ## Start Docker Compose
 
+1. Change directory to `BannoDemo/ops/`
 1. Run `docker-compose up` to start the demonstration and log to the terminal, or `docker-compose up -d` to start the demonstration and free the terminal
 1. Visit [http://localhost/stats](http://localhost/stats)
