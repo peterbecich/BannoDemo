@@ -52,5 +52,6 @@ SBT is required.
 ## Start Docker Compose
 
 1. Change directory to `BannoDemo/ops/`
-1. Run `docker-compose up` to start the demonstration and log to the terminal, or `docker-compose up -d` to start the demonstration and free the terminal
+1. Run `docker-compose up` to start the demonstration and log to the terminal, or `docker-compose up -d` to start the demonstration and detach
 1. Visit [http://localhost/stats](http://localhost/stats)
+1. If detached, run `docker-compose down` to stop the Compose application
