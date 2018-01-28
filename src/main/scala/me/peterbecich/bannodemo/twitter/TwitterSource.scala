@@ -4,6 +4,9 @@ import cats._
 import cats.effect.{IO, Sync}
 import cats.syntax.all._
 import com.danielasfregola.twitter4s.TwitterStreamingClient
+
+import com.danielasfregola.twitter4s.http.clients.streaming.statuses.FS2._
+
 import com.danielasfregola.twitter4s.entities.Tweet
 import com.danielasfregola.twitter4s.entities.streaming.{StreamingMessage, CommonStreamingMessage, UserStreamingMessage, SiteStreamingMessage}
 import fs2._
@@ -61,8 +64,8 @@ object TwitterSource {
     TwitterWindowAccumulator.makeWindowAccumulator(false).flatMap { windowAccumulator =>
       println("create Twitter Stream.  "+LocalDateTime.now())
       val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
-      val fTwitterStream: Future[TwitterStream] = ???
-        // streamingClient.FS2.sampleStatusesStream()(sink)
+      val fTwitterStream: Future[TwitterStream] =
+        streamingClient.sampleStatusesStream()(sink)
 
       val watchQueueSize: Stream[IO, Unit] = schedulerStream.flatMap { scheduler =>
         scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>

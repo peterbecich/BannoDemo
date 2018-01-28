@@ -67,7 +67,7 @@ lazy val root = (project in file("."))
       "com.danielasfregola" %% "twitter4s" % "5.3",
       // "com.danielasfregola" %% "twitter4s" % "5.5-FS2",
       // "me.peterbecich" % "twitter4s" % "5.5-FS2",
-      "com.danielasfregola" %% "twitter4s-fs2" % "1.0",
+      "com.danielasfregola" %% "twitter4s-fs2" % "1.0-SNAPSHOT",
       "org.specs2"     %% "specs2-core"          % Specs2Version % "test",
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion,
       "com.typesafe" % "config" % "1.3.1",
