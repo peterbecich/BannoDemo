@@ -61,8 +61,8 @@ object TwitterSource {
     TwitterWindowAccumulator.makeWindowAccumulator(false).flatMap { windowAccumulator =>
       println("create Twitter Stream.  "+LocalDateTime.now())
       val sink: Sink[IO, StreamingMessage] = streamingMessageEnqueue(twitterQueue.enqueue)
-      val fTwitterStream: Future[TwitterStream] =
-        streamingClient.FS2.sampleStatusesStream()(sink)
+      val fTwitterStream: Future[TwitterStream] = ???
+        // streamingClient.FS2.sampleStatusesStream()(sink)
 
       val watchQueueSize: Stream[IO, Unit] = schedulerStream.flatMap { scheduler =>
         scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
