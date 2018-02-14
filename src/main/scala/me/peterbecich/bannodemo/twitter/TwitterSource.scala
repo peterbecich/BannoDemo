@@ -5,7 +5,7 @@ import cats.effect.{IO, Sync}
 import cats.syntax.all._
 import com.danielasfregola.twitter4s.TwitterStreamingClient
 
-import com.danielasfregola.twitter4s.http.clients.streaming.statuses.FS2._
+import com.danielasfregola.twitter4s.fs2.http.clients.streaming.statuses.FS2._
 
 import com.danielasfregola.twitter4s.entities.Tweet
 import com.danielasfregola.twitter4s.entities.streaming.{StreamingMessage, CommonStreamingMessage, UserStreamingMessage, SiteStreamingMessage}
