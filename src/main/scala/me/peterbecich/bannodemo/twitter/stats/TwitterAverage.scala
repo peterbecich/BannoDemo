@@ -156,7 +156,8 @@ object TwitterAverage {
      }
 
   /*
-   Construct the signals that will contain the 
+   Construct the signal containing the TimeTable.
+   Construct the signals containing the 
    hour, minute and second averages.
    Construct a `TwitterAverage`.
 
@@ -206,13 +207,31 @@ abstract class TwitterAverage {
 
   // Second, minute and hour averages will be calculated every second
 
-  // Tweet counts for every second; count added every second
+  /*
+   Tweet average per second;
+   updated at `calculationInterval`
+   */
   val secondCountAccumulatorSignal: Signal[IO, SecondCountAccumulator]
-  // Tweet counts for every minute; count added every second
+
+  /*
+   Tweet average per minute;
+   updated at `calculationInterval`
+   */
   val minuteCountAccumulatorSignal: Signal[IO, MinuteCountAccumulator]
-  // Tweet counts for every hour; count added every second
+
+  /*
+   Tweet average per hour;
+   updated at `calculationInterval`
+   */
   val hourCountAccumulatorSignal: Signal[IO, HourCountAccumulator]
 
+  /*
+   Retrieve the most recently calculated second, minute and hour averages.
+   Zip into a 3-tuple.  Zipping, rather than flatMapping, is critical, here.
+   To zip three streams together is to combine the three heads of the streams.
+   To flatMap three streams together is to concatenate them.
+
+   */
   lazy val averagePayloadStream: Stream[IO, JSON.AveragePayload] = {
     lazy val secondStream: Stream[IO, SecondCountAccumulator] =
       secondCountAccumulatorSignal.continuous.flatMap { acc =>
@@ -241,21 +260,28 @@ abstract class TwitterAverage {
     payloadStream
   }
 
-  // for the timestamp key, increment the count value
+  /*
+   for the given timestamp (key), increment the count (value)
+   */
   private def incrementTime(timestamp: LocalDateTime): IO[Unit] =
     timeTableSignal.get.flatMap { timeTable =>
       IO {
+        // round timestamp down to nearest second
         val timestampTruncated: LocalDateTime =
           timestamp.truncatedTo(ChronoUnit.SECONDS)
+        // get prior count of Tweets at this timestamp, or 0
         val count: Long = timeTable.getOrElse(timestampTruncated, 0)
         // TODO potential for miscount with concurrent access???
+        // insert incremented value into time table
         timeTable.put(timestampTruncated, count+1)
         ()
       }
     }
 
-  // Remove timestamps from time table if they are beyond a certain age, in seconds.
-  // This cleans the time table of old entries.
+  /*
+   Remove timestamps from time table if they are beyond a certain age, in seconds.
+   This cleans the time table of old entries.
+   */
   private def filterTimeThreshold(threshold: Duration = hour): IO[Unit] =
     timeTableSignal.modify { timeTable =>
       // TODO investigate potential for lost data with concurrent calls to `modify` on Signal
@@ -288,6 +314,11 @@ abstract class TwitterAverage {
     }
   }
 
+  /*
+   Returns a copy of the TimeTable with entries going back a certain duration of time.
+   The TimeTable contains slightly over one hour of data.
+   The same TimeTable is used to produce averages for the prior minute and second with this method.
+   */
   private def truncateTimeTable
     (threshold: Duration, shift: Duration = Duration.ofSeconds(5)): IO[TimeTable] =
     timeTableSignal.get.map { timeTable =>
@@ -310,25 +341,45 @@ abstract class TwitterAverage {
   private def priorHourTimeTable: IO[TimeTable] =
     truncateTimeTable(hour)
 
-  // sum of tweets in the past second
+  /* 
+   Sum of tweets in the past second,
+   and count of TimeTable entries within the past second
+   (should be one).
+   */
   private def secondSum: IO[(Long, Long)] =
     priorSecondTimeTable.map { timeTable =>
       (timeTable.values.sum, timeTable.size)
     }
 
-  // sum of tweets in the past minute, from this second
+  /*
+   Sum of tweets in the past minute,
+   and count of TimeTable entries within the past minute
+   (for example, 0, if no Tweets are coming through the pipeline).
+   */
   private def minuteSum: IO[(Long, Long)] =
     priorMinuteTimeTable.map { timeTable =>
       (timeTable.values.sum, timeTable.size)
     }
 
-  // sum of tweets in the past hour, from this second
+  /*
+   Sum of tweets in the past hour,
+   and count of TimeTable entries within the past hour.
+   */
   private def hourSum: IO[(Long, Long)] =
     priorHourTimeTable.map { timeTable =>
       (timeTable.values.sum, timeTable.size)
     }
 
-  // calculates second averages
+  /*
+   An stream that returns Unit.  
+   Streams that return Unit can easily be run concurrently with other Streams.
+   It updates the Tweets/second average at the interval `calculationInterval`.
+
+   The head of the `Stream`, `scheduler.fixedRate`, emits a Unit at `calculationInterval`.
+   This forces the next `Stream` down the line to consume input no faster than this rate.
+   In this way a `Stream` can be throttled at the source.
+
+   */
   private lazy val calculateSecondAverage: Stream[IO, Unit] =
     schedulerStream.flatMap { scheduler =>
       scheduler.fixedRate(calculationInterval)(IO.ioEffect, global).flatMap { _ =>
@@ -342,7 +393,9 @@ abstract class TwitterAverage {
       }
     }.drain
   
-  // calculates minute averages
+  /*
+   Updates the Tweets/minute average at the interval `calculationInterval`.
+   */
   private lazy val calculateMinuteAverage: Stream[IO, Unit] =
     schedulerStream.flatMap { scheduler =>
       scheduler.fixedRate(calculationInterval)(IO.ioEffect, global).flatMap { _ =>
@@ -356,7 +409,9 @@ abstract class TwitterAverage {
       }
     }.drain
 
-  // calculates hourly averages
+  /*
+   Updates the Tweets/hour average at the interval `calculationInterval`.
+   */
   private lazy val calculateHourlyAverage: Stream[IO, Unit] =
     schedulerStream.flatMap { scheduler =>
       scheduler.fixedRate(calculationInterval)(IO.ioEffect, global).flatMap { _ =>
@@ -370,9 +425,16 @@ abstract class TwitterAverage {
       }
     }.drain
 
+  /*
+   8 Java threads (?) with which to schedule these asynchronous streams
+   */
   private lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](8)
 
-  // prints Tweets/second to console every two seconds
+  /*
+   Every 30 seconds, this `Stream` emits the timestamp and Tweet count of now-10,
+   and total TimeTable size.
+   To be used asynchronously, or concurrently, it must be fed into a "printer" `Stream`.
+   */
   private lazy val recentCount: Stream[IO, (LocalDateTime, Long, Long)] =
     schedulerStream.flatMap { scheduler =>
       scheduler.fixedRate(30.second)(IO.ioEffect, global).flatMap { _ =>
@@ -385,7 +447,9 @@ abstract class TwitterAverage {
       }
     }
 
-  // prints Tweets/second to console every two seconds
+  /*
+   Consumes the `recentCount` `Stream` and prints it to the console.  Returns Unit.
+   */
   private lazy val printRecentCount: Stream[IO, Unit] = recentCount
     .map { case (ts, count, timeTableSize) =>
       name + " " + ts.toString() + " count: " + count + " time table size: " + timeTableSize + "\n"}
@@ -427,15 +491,20 @@ abstract class TwitterAverage {
       .through(fs2.io.stdout)
       .drain
   
-  //  incrementTimePipe.andThen(filterTimeThresholdPipe)
+  /*
+   Concatenate the essential pipelines of `TwitterAverage` end-to-end.
+   "Fork" three concurrent `Stream`s, which calculate the three averages -- hour, minute, second.
+   Fork other concurrent `Stream`s if debugging is necessary.
+   */
+
   val averagePipe: Pipe[IO, Tweet, Tweet] =
     (s: Stream[IO, Tweet]) =>
   incrementTimePipe(s)
     .through(filterTimeThresholdPipe)
-    // .concurrently(printRecentCount)
     .concurrently(calculateHourlyAverage)
     .concurrently(calculateMinuteAverage)
     .concurrently(calculateSecondAverage)
+    // .concurrently(printRecentCount)
     // .concurrently(watchSecondSignal)
     // .concurrently(watchMinuteSignal)
     // .concurrently(watchHourSignal)
