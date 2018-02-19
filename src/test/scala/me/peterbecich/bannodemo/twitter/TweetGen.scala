@@ -63,12 +63,45 @@ object TweetGen {
     _truncated <- arbitrary[Boolean]
     _withheld_copyright <- arbitrary[Boolean]
     _withheld_in_countries = Seq()
-  } yield Tweet(Seq(), None, _created_at, None, None, None,
-    _favorite_count, _favorited, None, None, _id, _id_str,
-    None, None, None, None, None, _is_quote_status, None, None,
-    _possibly_sensitive, None, None, None, _scopes, _retweet_count,
-    _retweeted, None, _source, _text, _truncated, None, _withheld_copyright,
-    _withheld_in_countries, None, None)
+  } yield Tweet(
+    Seq(),
+    None,
+    _created_at,
+    None,
+    None,
+    None,
+    _favorite_count,
+    _favorited,
+    None,
+    None,
+    _id,
+    _id_str,
+    None,
+    None,
+    None,
+    None,
+    None,
+    _is_quote_status,
+    None,
+    None,
+    _possibly_sensitive,
+    None,
+    None,
+    None,
+    _scopes,
+    _retweet_count,
+    _retweeted,
+    None,
+    _source,
+    _text,
+    _truncated,
+    None,
+    None,
+    _withheld_copyright,
+    _withheld_in_countries,
+    None,
+    None
+  )
 
 
   implicit val tweetArbitrary: Arbitrary[Tweet] = Arbitrary(tweetGen)

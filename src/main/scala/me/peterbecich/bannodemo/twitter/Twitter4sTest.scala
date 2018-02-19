@@ -11,7 +11,7 @@ object Twitter4sTest extends App {
 
   val streamingClient = TwitterStreamingClient()
 
-  streamingClient.sampleStatusesFS2
+  // streamingClient.sampleStatusesFS2
 
 }
 

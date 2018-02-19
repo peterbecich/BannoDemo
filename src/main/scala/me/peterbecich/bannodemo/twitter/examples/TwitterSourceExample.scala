@@ -17,8 +17,6 @@ import me.peterbecich.bannodemo.twitter.TwitterSource
 
 object TwitterSourceExample {
 
-  import fs2._
-
   // val printTwitter = for (
   //   twitterStream <- TwitterQueue.createTwitterStream
   //   val drained = twitterStream.map(_.text).take(64).through(text.utf8Encode).observe(io.stdout).drain.run
