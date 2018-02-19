@@ -1,43 +1,47 @@
 package me.peterbecich.bannodemo.twitter.stats
 
 import cats._
+import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.syntax.all._
-import cats.effect.{IO, Sync}
-
-import fs2.{Stream, Pipe, Scheduler}
-import fs2.async.mutable.Signal
-import fs2.async.immutable.{Signal => ISignal}
-
 import com.danielasfregola.twitter4s.entities.Tweet
-
-import scala.collection.concurrent.TrieMap
-
-import java.time.{LocalDateTime, ZoneOffset, Duration}
+import fs2.async.immutable.{Signal => ISignal}
+import fs2.async.mutable.Signal
+import fs2.{Stream, Pipe, Scheduler}
 import java.time.temporal.ChronoUnit
-
+import java.time.{LocalDateTime, ZoneOffset, Duration}
 import me.peterbecich.bannodemo.twitter.TwitterStats.getTweetTime
-
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-
 object TwitterAverage {
+
+  /*
+   Interval of average recalculation
+   */
 
   val calculationInterval = 1.second
 
-  // val minute: Long = 60
-  // val hour: Long = minute*60
   val second: Duration = Duration.ofSeconds(1)
   val minute: Duration = Duration.ofMinutes(1)
   val hour: Duration = Duration.ofHours(1)
 
-  // Time Table is a hashmap of the prior 3600 seconds
+  /*
+   `TimeTable` is a hashmap of the tweet counts 
+   in the prior 3600 seconds
+   */
   type TimeTable = TrieMap[LocalDateTime, Long]
+  /*
+   It is stored in a `Signal`
+   */
   type TimeTableSignal = Signal[IO, TimeTable]
 
-  // Set of Tweet counts taken from the Time Table;
-  // used to produce averages
+  /*
+   For a given interval of time (second, minute, hour),
+   an instance of CountAccumulator holds the Tweet count
+   and count of time units that have passed.
+   */
   trait CountAccumulator {
     val sum: Long
     val count: Long
@@ -48,6 +52,10 @@ object TwitterAverage {
     val ts: LocalDateTime
   }
 
+  /*
+   Each of these three instances is replaced
+   with every Tweet counted.
+   */
   case class SecondCountAccumulator(
     sum: Long = 0,
     count: Long = 0,
@@ -85,8 +93,20 @@ object TwitterAverage {
 
     import me.peterbecich.bannodemo.JSON.Common._
 
-    implicit val averagePayloadEncoder: Encoder[AveragePayload] = deriveEncoder
+    implicit val averagePayloadEncoder: Encoder[AveragePayload] =
+      deriveEncoder
 
+    /*
+     DTO to be easily serialized to JSON.
+
+     Each average -- by hour, minute, second -- is recalculated
+     on a frequent interval by an asynchronous process.
+
+     If this process were to stop for some reason,
+     the timestamp of that average would begin to lag,
+     indicating the problem to the front-end.
+
+     */
     case class AveragePayload(
       name: String,
       secondAverage: Double,
@@ -110,6 +130,10 @@ object TwitterAverage {
       )
   }
 
+  /*
+   A `TimeTableSignal` is constructed, containing an 
+   empty `HashMap`.
+   */
   private def makeTimeTableSignal: IO[TimeTableSignal] =
     Signal.apply(TrieMap.empty[LocalDateTime, Long])(IO.ioEffect, global)
 
@@ -122,8 +146,7 @@ object TwitterAverage {
       MinuteCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
     _hourCountAccumulatorSignal <- Signal.apply {
       HourCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
-  } yield {
-    new TwitterAverage {
+  } yield new TwitterAverage {
       val name = _name
       val timeTableSignal = _timeTableSignal
       val predicate = _predicate
@@ -131,8 +154,13 @@ object TwitterAverage {
       val minuteCountAccumulatorSignal = _minuteCountAccumulatorSignal
       val hourCountAccumulatorSignal = _hourCountAccumulatorSignal
      }
-  }
 
+  /*
+   Construct the signals that will contain the 
+   hour, minute and second averages.
+   Construct a `TwitterAverage`.
+
+   */
   private def _makeAverage(_name: String, _predicate: Tweet => Boolean):
       IO[(TwitterAverage, TimeTableSignal)] = for {
     _timeTableSignal <- makeTimeTableSignal
@@ -142,19 +170,31 @@ object TwitterAverage {
       MinuteCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
     _hourCountAccumulatorSignal <- Signal.apply {
       HourCountAccumulator(ts = LocalDateTime.now())}(IO.ioEffect, global)
-  } yield {
-    (new TwitterAverage {
+  } yield (new TwitterAverage {
       val name = _name
       val timeTableSignal = _timeTableSignal
       val predicate = _predicate
       val secondCountAccumulatorSignal = _secondCountAccumulatorSignal
       val minuteCountAccumulatorSignal = _minuteCountAccumulatorSignal
       val hourCountAccumulatorSignal = _hourCountAccumulatorSignal
-     }, _timeTableSignal)
-  }
-  
+  }, _timeTableSignal)
+
   
 }
+
+/*
+ `TwitterAverage` calculates the average rate of Tweets
+ that satisfy a given predicate
+ over a unit of time -- hour, minute or second.
+
+ It provides a rolling average, recalculated at the interval
+ specified in `calculationInterval`.
+
+ The calculation interval is set to 1 second.  
+ This means the average Tweets per hour is recalculated 
+ 3600 times per hour.
+
+ */
 
 abstract class TwitterAverage {
 
@@ -200,8 +240,6 @@ abstract class TwitterAverage {
 
     payloadStream
   }
-
-
 
   // for the timestamp key, increment the count value
   private def incrementTime(timestamp: LocalDateTime): IO[Unit] =
@@ -331,7 +369,6 @@ abstract class TwitterAverage {
         }
       }
     }.drain
-
 
   private lazy val schedulerStream: Stream[IO, Scheduler] = Scheduler.apply[IO](8)
 

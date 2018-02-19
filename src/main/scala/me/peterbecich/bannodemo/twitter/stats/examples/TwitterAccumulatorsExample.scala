@@ -1,17 +1,12 @@
 package me.peterbecich.bannodemo.twitter.stats.examples
 
-import java.util.concurrent.atomic.AtomicLong
-
-import com.danielasfregola.twitter4s.entities.Tweet
-
 import cats._
+import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.syntax.all._
-import cats.effect.{IO, Sync}
+import com.danielasfregola.twitter4s.entities.Tweet
 import fs2.{Stream, Pipe}
-
-
-
+import java.util.concurrent.atomic.AtomicLong
 
 // object TwitterAccumulatorExample {
 //   import fs2.{io, text}

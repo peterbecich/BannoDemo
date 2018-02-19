@@ -1,32 +1,24 @@
 package me.peterbecich.bannodemo.twitter.stats
 
 import cats._
+import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.syntax.all._
-import cats.effect.{IO, Sync}
-
-import fs2.{Stream, Pipe, Scheduler}
-import fs2.async.mutable.Signal
-import fs2.async.immutable.{Signal => ISignal}
-
 import com.danielasfregola.twitter4s.entities.Tweet
-
+import fs2.async.immutable.{Signal => ISignal}
+import fs2.async.mutable.Signal
+import fs2.{Stream, Pipe, Scheduler}
+import io.circe.generic.encoding.DerivedObjectEncoder
+import java.time.temporal.ChronoUnit
+import java.time.{LocalDateTime, ZoneOffset, Duration}
+import me.peterbecich.bannodemo.twitter.TwitterStats.getTweetTime
 import scala.collection.concurrent.TrieMap
-import scala.collection.immutable.Map
 import scala.collection.immutable.HashSet
 import scala.collection.immutable.IndexedSeq
-
-import scala.util.matching.Regex
-
-import java.time.{LocalDateTime, ZoneOffset, Duration}
-import java.time.temporal.ChronoUnit
-
-import io.circe.generic.encoding.DerivedObjectEncoder
-
-import me.peterbecich.bannodemo.twitter.TwitterStats.getTweetTime
-
+import scala.collection.immutable.Map
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.util.matching.Regex
 
 object RegexExample {
 

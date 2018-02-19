@@ -12,18 +12,16 @@ import io.circe.generic.semiauto._
 import io.circe.literal._
 import io.circe.syntax._
 import java.time.{LocalDateTime, ZonedDateTime}
+import me.peterbecich.bannodemo.HelloWorldServer.serverStart
 import me.peterbecich.bannodemo.JSON.Common._
-import org.http4s.circe._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-
 import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators
 import me.peterbecich.bannodemo.twitter.stats.TwitterAccumulators._
 import me.peterbecich.bannodemo.twitter.stats.TwitterAverages
 import me.peterbecich.bannodemo.twitter.stats.TwitterHistograms
 import me.peterbecich.bannodemo.twitter.stats.TwitterWindowAccumulator
-
-import me.peterbecich.bannodemo.HelloWorldServer.serverStart
+import org.http4s.circe._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 /*
  https://docs.oracle.com/javase/8/docs/api/java/time/ZonedDateTime.html

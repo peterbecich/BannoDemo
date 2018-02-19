@@ -1,26 +1,19 @@
 package me.peterbecich.bannodemo.twitter.stats
 
 import cats._
+import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.syntax.all._
-import cats.effect.{IO, Sync}
-
-import fs2.{Stream, Pipe, Scheduler}
-import fs2.async.mutable.Signal
-import fs2.async.immutable.{Signal => ISignal}
-
 import com.danielasfregola.twitter4s.entities.Tweet
-
-import scala.collection.concurrent.TrieMap
-
-import java.time.{LocalDateTime, ZoneOffset, Duration}
+import fs2.async.immutable.{Signal => ISignal}
+import fs2.async.mutable.Signal
+import fs2.{Stream, Pipe, Scheduler}
 import java.time.temporal.ChronoUnit
-
+import java.time.{LocalDateTime, ZoneOffset, Duration}
 import me.peterbecich.bannodemo.twitter.TwitterStats.getTweetTime
-
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-
 
 object TwitterAverages {
 

@@ -1,33 +1,24 @@
 package me.peterbecich.bannodemo.twitter.stats
 
 import cats._
+import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.syntax.all._
-import cats.effect.{IO, Sync}
-
-import fs2.{Stream, Pipe, Scheduler}
-import fs2.async.mutable.Signal
-import fs2.async.immutable.{Signal => ISignal}
-
 import com.danielasfregola.twitter4s.entities.Tweet
-
-import scala.collection.concurrent.TrieMap
-
-import java.time.{LocalDateTime, ZoneOffset, Duration}
+import fs2.async.immutable.{Signal => ISignal}
+import fs2.async.mutable.Signal
+import fs2.{Stream, Pipe, Scheduler}
 import java.time.temporal.ChronoUnit
-
+import java.time.{LocalDateTime, ZoneOffset, Duration}
 import me.peterbecich.bannodemo.twitter.TwitterStats.getTweetTime
-
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-
 
 object TwitterWindowAccumulator {
 
   val calculationInterval = 1.second
 
-  // val minute: Long = 60
-  // val hour: Long = minute*60
   val second: Duration = Duration.ofSeconds(1)
   val minute: Duration = Duration.ofMinutes(1)
   val hour: Duration = Duration.ofHours(1)
@@ -85,6 +76,13 @@ object TwitterWindowAccumulator {
   }
 
 }
+
+/*
+
+ A simple count of Tweets in the past minute; no averaging.
+ The self-restarting Tweet Source uses this to check Tweet thoroughput.
+
+ */
 
 abstract class TwitterWindowAccumulator(watch: Boolean = false) {
 

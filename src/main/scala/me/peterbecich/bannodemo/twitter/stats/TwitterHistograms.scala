@@ -1,23 +1,18 @@
 package me.peterbecich.bannodemo.twitter.stats
 
 import cats._
+import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.syntax.all._
-import cats.effect.{IO, Sync}
-
-import fs2.{Stream, Pipe, Scheduler}
-import fs2.async.mutable.Signal
-import fs2.async.immutable.{Signal => ISignal}
-
 import com.danielasfregola.twitter4s.entities.Tweet
-
-import scala.collection.immutable.IndexedSeq
-import scala.collection.concurrent.TrieMap
-
-import java.time.{LocalDateTime, ZoneOffset, Duration}
+import fs2.async.immutable.{Signal => ISignal}
+import fs2.async.mutable.Signal
+import fs2.{Stream, Pipe, Scheduler}
 import java.time.temporal.ChronoUnit
-
-
+import java.time.{LocalDateTime, ZoneOffset, Duration}
+import me.peterbecich.bannodemo.emojis.Emojis._
+import scala.collection.concurrent.TrieMap
+import scala.collection.immutable.IndexedSeq
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -31,8 +26,6 @@ object TwitterHistograms {
   
   private lazy val hashtagHistogram: IO[TwitterHistogram] =
     TwitterHistogram.makeTwitterHistogramRegex("Hashtag", raw"""\#\S+""".r)
-
-  import me.peterbecich.bannodemo.emojis.Emojis._
 
   private lazy val emojisHistogram: IO[TwitterHistogram] =
     retrieveEmojis match {
@@ -49,6 +42,10 @@ object TwitterHistograms {
           .map(_.toString)
           .toIndexedSeq
 
+        /*
+         "Visual" check that emojis are loaded from text file on disk.
+         */
+
         println("a few emoji codepoints:")
         bins.take(128).foreach(s => print(s + " "))
 
@@ -62,7 +59,6 @@ object TwitterHistograms {
               (emojiCharS, tweetCharS)
             }
           }
-          // println("product: "+product.length)
 
           product
             .filter { case (e, t) => e.equalsIgnoreCase(t) }
@@ -81,23 +77,19 @@ object TwitterHistograms {
         TwitterHistogram.makeTwitterHistogram("UTF8Emojis", keys, _bins = bins, _growBins = false)
 
       }
-
-
   }
 
-
-  private lazy val makeHistograms: IO[List[TwitterHistogram]]=
+  private lazy val makeHistograms: IO[List[TwitterHistogram]] =
     Traverse[List].sequence(List(urlHistogram, urlEndpointHistogram, hashtagHistogram, emojisHistogram))
 
   object JSON {
-    import io.circe._
-    import io.circe.Encoder
-    import io.circe.syntax._
-    import io.circe.literal._
-    import io.circe.generic.semiauto._
 
     import cats.instances.map._
-
+    import io.circe.Encoder
+    import io.circe._
+    import io.circe.generic.semiauto._
+    import io.circe.literal._
+    import io.circe.syntax._
     import scala.collection.immutable.HashMap
 
     type HistogramsPayload = Map[String, TwitterHistogram.JSON.HistogramPayload]
@@ -145,6 +137,4 @@ object TwitterHistograms {
         }
       }
     }
-
-
 }
