@@ -50,18 +50,26 @@ object RegexExample {
 
 }
 
-
-
-
 object TwitterHistogram {
 
+  /*
+   A Histogram;
+   a collection of bins, 
+   and a Map, keyed by those bins
+   */
   type Histogram = (IndexedSeq[String], TrieMap[String, Long])
   type HistogramSignal = Signal[IO, Histogram]
 
+  /*
+   The initial state of the Histogram, inside a Signal.
+   If bins are provided, the Histogram (Map) is 
+   */
   private def makeHistogramSignal
     (bins: IndexedSeq[String] = IndexedSeq.empty[String]):
       IO[HistogramSignal] =
-    Signal.apply((bins, TrieMap.empty[String, Long]))(IO.ioEffect, global)
+    Signal.apply {
+      (bins, TrieMap.empty[String, Long] ++= bins.map(bin => (bin, 0.toLong)))
+    }(IO.ioEffect, global)
 
   object JSON {
     import io.circe._
@@ -122,6 +130,14 @@ object TwitterHistogram {
 
 import TwitterHistogram._
 
+/*
+ A Histogram of Tweets.
+ The bins of the histogram can be fixed, or grow dynamically (`growBins`).
+
+ The bin can be identified by a predicate (`PredicateTwitterHistogram`)
+ or by a regular expression.
+ */
+
 trait TwitterHistogram {
   val name: String
   val histogramSignal: HistogramSignal
@@ -154,6 +170,31 @@ trait TwitterHistogram {
 }
 
 
+/*
+ example
+ getKeys = tweet => tweet.text.length.toString
+ growBins = True
+
+ This would create a Histogram of Tweets by their length, where
+ the possible lengths are not known at the time of histogram construction
+
+ another (ridiculous) example
+
+ getKeys = tweet => tweet.text.length match {
+   case 0 => "0"
+   case 1 => "1"
+   ...
+   case 240 => "240"
+   case _ => "illegal"
+ }
+ growBins = False
+
+ This would also create a Histogram of Tweets by length.  
+ Every possible length is initially known.
+ The pattern match is a total (not partial) function because of the wildcard case.
+
+ A single Tweet may count in multiple bins.
+ */
 case class PredicateTwitterHistogram(
     name: String,
     histogramSignal: HistogramSignal,

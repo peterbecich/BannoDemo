@@ -23,14 +23,25 @@ object TwitterAverages {
     TwitterAverage.makeAverage("HashtagAverage", tweet => tweet.text.contains("#"))
 
   import me.peterbecich.bannodemo.emojis.Emojis._
-  
+
+  /*
+   Emojis must be retrieved from text file on disk,
+   before constructing this instance of `TwitterAverage`.
+   */
   private lazy val emojiAverage: IO[TwitterAverage] =
     retrieveEmojis match {
       case Left(error) => {
+        /*
+         If no emojis retrieved from disk,
+         this instance of `TwitterAverage` will not count any Tweets
+         */
         println("error retrieving emojis from disk")
         TwitterAverage.makeAverage("EmojiAverage", (_) => false)
       }
       case Right(emojis) => {
+        /*
+         Extract the character from each emoji, i.e. '☮'
+         */
         val bins: IndexedSeq[String] = emojis
           .map(_.emojiChar)
           .collect {
@@ -45,6 +56,10 @@ object TwitterAverages {
         def keys(tweet: Tweet): IndexedSeq[String] =
           _keys(tweet.text)
 
+        /*
+         For a given Tweet,
+         return a list of emojis that exist within the Tweet.
+         */
         def _keys(tweetText: String): IndexedSeq[String] = {
           val tweetCharStrings = tweetText.toCharArray().map(_.toString)
           val product = bins.flatMap { emojiCharS =>
@@ -52,7 +67,6 @@ object TwitterAverages {
               (emojiCharS, tweetCharS)
             }
           }
-          // println("product: "+product.length)
 
           product
             .filter { case (e, t) => e.equalsIgnoreCase(t) }
@@ -78,7 +92,9 @@ object TwitterAverages {
         println("test tweet 2 keys found")
         println(testTweetKeys2)
         
-        
+        /*
+         The predicate tests if at least one character in the Tweet is an emoji
+         */
         TwitterAverage.makeAverage("EmojiAverage", tweet => (keys(tweet).length > 0))
       }
     }
@@ -103,7 +119,6 @@ object TwitterAverages {
 
     def makeAveragesPayload(averages: List[AveragePayload]): AveragesPayload =
       averages.map { avePayload =>
-        // println("make averages payload: "+avePayload)
         (avePayload.name, avePayload)
       }.toMap
 
@@ -112,7 +127,9 @@ object TwitterAverages {
 
   }
 
-
+  /*
+   List[IO[TwitterAverage] => IO[List[TwitterAverage]]
+   */
   private lazy val makeAverages: IO[List[TwitterAverage]] =
     Traverse[List].sequence(List(tweetAverage, emojiAverage, hashtagAverage))
 
@@ -125,7 +142,9 @@ object TwitterAverages {
   }
 
   def makeConcatenatedAveragePipe(averages: List[TwitterAverage]): IO[Pipe[IO, Tweet, Tweet]] =
-    IO(Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid))
+    IO {
+      Foldable[List].foldMap(averages)(_.averagePipe)(pipeConcatenationMonoid)
+    }
 
   import cats.instances.map._
   
@@ -139,6 +158,9 @@ object TwitterAverages {
   //     case h::t => ???
   //   }
 
+  /*
+   List[Stream[IO, Payload]] => Stream[IO, List[Payload]]
+   */
   def sequenceStreams(listStream: List[Stream[IO,TwitterAverage.JSON.AveragePayload]]):
       Stream[IO, List[TwitterAverage.JSON.AveragePayload]] =
     listStream match {
@@ -157,6 +179,10 @@ object TwitterAverages {
     streamListPayload.map(JSON.makeAveragesPayload)
   }
 
+  /*
+   Inside IO, construct a Pipe through which Tweets will pass to be counted,
+   and a Stream that emits the most recent Tweet averages, bundled together in a Map
+   */
   val makeTwitterAverages: IO[(Pipe[IO, Tweet, Tweet], Stream[IO, JSON.AveragesPayload])] =
     makeAverages.flatMap { averages =>
       makeConcatenatedAveragePipe(averages).map { pipe =>
