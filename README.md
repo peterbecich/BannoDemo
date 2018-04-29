@@ -2,9 +2,6 @@
 
 [![Build Status](https://travis-ci.org/peterbecich/BannoDemo.svg?branch=master)](https://travis-ci.org/peterbecich/BannoDemo)
 
-Demonstration:
-
-[http://9c3502d3-4e11-4121-b031-724bda5d5f8a.pub.cloud.scaleway.com/stats](http://9c3502d3-4e11-4121-b031-724bda5d5f8a.pub.cloud.scaleway.com/stats)
 
 [Twitter firehose data](https://developer.twitter.com/en/docs/tweets/sample-realtime/overview/GET_statuse_sample)
 
